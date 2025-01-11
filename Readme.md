@@ -1,0 +1,1 @@
+schematools codegen openapi schemas/ssvopenapi2.json --template templates --target-dir gen

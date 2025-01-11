@@ -1,0 +1,387 @@
+{
+    "$schema": "http://json-schema.org/draft-06/schema#",
+    "$ref": "#/definitions/Validators",
+    "definitions": {
+        "Validators": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "validators": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/Validator"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/Pagination"
+                }
+            },
+            "required": [
+                "pagination",
+                "validators"
+            ],
+            "title": "Validators"
+        },
+        "Pagination": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "total": {
+                    "type": "integer"
+                },
+                "pages": {
+                    "type": "integer"
+                },
+                "per_page": {
+                    "type": "integer"
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "current_first": {
+                    "type": "integer"
+                },
+                "current_last": {
+                    "type": "integer"
+                }
+            },
+            "required": [
+                "current_first",
+                "current_last",
+                "page",
+                "pages",
+                "per_page",
+                "total"
+            ],
+            "title": "Pagination"
+        },
+        "Validator": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "public_key": {
+                    "type": "string"
+                },
+                "cluster": {
+                    "type": "string"
+                },
+                "owner_address": {
+                    "$ref": "#/definitions/OwnerAddress"
+                },
+                "status": {
+                    "$ref": "#/definitions/OperatorStatus"
+                },
+                "is_valid": {
+                    "type": "boolean"
+                },
+                "is_deleted": {
+                    "type": "boolean"
+                },
+                "is_public_key_valid": {
+                    "type": "boolean"
+                },
+                "is_shares_valid": {
+                    "type": "boolean"
+                },
+                "is_operators_valid": {
+                    "type": "boolean"
+                },
+                "operators": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/Operator"
+                    }
+                },
+                "validator_info": {
+                    "$ref": "#/definitions/ValidatorInfo"
+                },
+                "version": {
+                    "$ref": "#/definitions/Version"
+                },
+                "network": {
+                    "$ref": "#/definitions/Network"
+                }
+            },
+            "required": [
+                "cluster",
+                "id",
+                "is_deleted",
+                "is_operators_valid",
+                "is_public_key_valid",
+                "is_shares_valid",
+                "is_valid",
+                "network",
+                "operators",
+                "owner_address",
+                "public_key",
+                "status",
+                "validator_info",
+                "version"
+            ],
+            "title": "Validator"
+        },
+        "Operator": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "id_str": {
+                    "type": "string",
+                    "format": "integer"
+                },
+                "declared_fee": {
+                    "type": "string",
+                    "format": "integer"
+                },
+                "previous_fee": {
+                    "type": "string",
+                    "format": "integer"
+                },
+                "fee": {
+                    "type": "string"
+                },
+                "public_key": {
+                    "type": "string"
+                },
+                "owner_address": {
+                    "$ref": "#/definitions/OwnerAddress"
+                },
+                "address_whitelist": {
+                    "$ref": "#/definitions/OwnerAddress"
+                },
+                "whitelist_addresses": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/OwnerAddress"
+                    }
+                },
+                "is_private": {
+                    "type": "boolean"
+                },
+                "whitelisting_contract": {
+                    "type": "string"
+                },
+                "location": {
+                    "$ref": "#/definitions/Location"
+                },
+                "setup_provider": {
+                    "$ref": "#/definitions/SetupProvider"
+                },
+                "eth1_node_client": {
+                    "$ref": "#/definitions/Eth1NodeClient"
+                },
+                "eth2_node_client": {
+                    "$ref": "#/definitions/Eth2NodeClient"
+                },
+                "mev_relays": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "website_url": {
+                    "type": "string"
+                },
+                "twitter_url": {
+                    "type": "string"
+                },
+                "linkedin_url": {
+                    "type": "string"
+                },
+                "dkg_address": {
+                    "type": "string"
+                },
+                "logo": {
+                    "type": "string",
+                    "format": "uri",
+                    "qt-uri-protocols": [
+                        "https"
+                    ],
+                    "qt-uri-extensions": [
+                        ".png"
+                    ]
+                },
+                "type": {
+                    "$ref": "#/definitions/Type"
+                },
+                "name": {
+                    "$ref": "#/definitions/Name"
+                },
+                "performance": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "number"
+                    }
+                },
+                "is_valid": {
+                    "type": "boolean"
+                },
+                "is_deleted": {
+                    "type": "boolean"
+                },
+                "is_active": {
+                    "type": "integer"
+                },
+                "status": {
+                    "$ref": "#/definitions/OperatorStatus"
+                },
+                "validators_count": {
+                    "type": "integer"
+                },
+                "version": {
+                    "$ref": "#/definitions/Version"
+                },
+                "network": {
+                    "$ref": "#/definitions/Network"
+                }
+            },
+            "required": [
+                "address_whitelist",
+                "declared_fee",
+                "description",
+                "dkg_address",
+                "eth1_node_client",
+                "eth2_node_client",
+                "fee",
+                "id",
+                "id_str",
+                "is_active",
+                "is_deleted",
+                "is_private",
+                "is_valid",
+                "linkedin_url",
+                "location",
+                "logo",
+                "mev_relays",
+                "name",
+                "network",
+                "owner_address",
+                "performance",
+                "previous_fee",
+                "public_key",
+                "setup_provider",
+                "status",
+                "twitter_url",
+                "type",
+                "validators_count",
+                "version",
+                "website_url",
+                "whitelist_addresses",
+                "whitelisting_contract"
+            ],
+            "title": "Operator"
+        },
+        "ValidatorInfo": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "index": {
+                    "type": "integer"
+                },
+                "status": {
+                    "$ref": "#/definitions/ValidatorInfoStatus"
+                },
+                "activation_epoch": {
+                    "type": "integer"
+                }
+            },
+            "required": [
+                "activation_epoch",
+                "index",
+                "status"
+            ],
+            "title": "ValidatorInfo"
+        },
+        "Network": {
+            "type": "string",
+            "enum": [
+                "mainnet"
+            ],
+            "title": "Network"
+        },
+        "Eth1NodeClient": {
+            "type": "string",
+            "enum": [
+                "Geth",
+                ""
+            ],
+            "title": "Eth1NodeClient"
+        },
+        "Eth2NodeClient": {
+            "type": "string",
+            "enum": [
+                "Prysm",
+                "Lighthouse",
+                ""
+            ],
+            "title": "Eth2NodeClient"
+        },
+        "Location": {
+            "type": "string",
+            "enum": [
+                "United States of America",
+                ""
+            ],
+            "title": "Location"
+        },
+        "Name": {
+            "type": "string",
+            "enum": [
+                "SSV Labs",
+                "SSV Labs 2",
+                "SSV Labs 3",
+                "SSV Labs 4"
+            ],
+            "title": "Name"
+        },
+        "SetupProvider": {
+            "type": "string",
+            "enum": [
+                "AWS",
+                ""
+            ],
+            "title": "SetupProvider"
+        },
+        "OperatorStatus": {
+            "type": "string",
+            "enum": [
+                "Active"
+            ],
+            "title": "OperatorStatus"
+        },
+        "Type": {
+            "type": "string",
+            "enum": [
+                "operator"
+            ],
+            "title": "Type"
+        },
+        "Version": {
+            "type": "string",
+            "enum": [
+                "v4"
+            ],
+            "title": "Version"
+        },
+        "OwnerAddress": {
+            "type": "string",
+            "enum": [
+                "0x5E33db0b37622F7E6b2f0654aA7B985D854EA9Cb",
+                "0x3187a42658417a4d60866163A4534Ce00D40C0C8"
+            ],
+            "title": "OwnerAddress"
+        },
+        "ValidatorInfoStatus": {
+            "type": "string",
+            "enum": [
+                "active_ongoing"
+            ],
+            "title": "ValidatorInfoStatus"
+        }
+    }
+}

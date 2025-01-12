@@ -2167,18 +2167,6 @@
                                 ]
                             }
                         }
-                    },
-                    "components": {
-                        "schemas": {
-                            "ValidatorPublicKeysDto": {
-                                "type": "object",
-                                "properties": {
-                                    "publicKeys": {
-                                        "type": "string[]"
-                                    }
-                                }
-                            }
-                        }
                     }
                 }
             }

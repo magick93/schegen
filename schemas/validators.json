@@ -198,13 +198,7 @@
                 },
                 "logo": {
                     "type": "string",
-                    "format": "uri",
-                    "qt-uri-protocols": [
-                        "https"
-                    ],
-                    "qt-uri-extensions": [
-                        ".png"
-                    ]
+                    "format": "uri"
                 },
                 "type": {
                     "$ref": "#/definitions/Type"

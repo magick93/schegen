@@ -84,39 +84,20 @@
                     "type": "string"
                 },
                 "website_url": {
-                    "type": "string",
-                    "qt-uri-protocols": [
-                        "https"
-                    ]
+                    "type": "string"
                 },
                 "twitter_url": {
-                    "type": "string",
-                    "qt-uri-protocols": [
-                        "https"
-                    ]
+                    "type": "string"
                 },
                 "linkedin_url": {
-                    "type": "string",
-                    "qt-uri-protocols": [
-                        "https"
-                    ]
+                    "type": "string"
                 },
                 "dkg_address": {
-                    "type": "string",
-                    "qt-uri-protocols": [
-                        "https"
-                    ]
+                    "type": "string"
                 },
                 "logo": {
                     "type": "string",
-                    "format": "uri",
-                    "qt-uri-protocols": [
-                        "https"
-                    ],
-                    "qt-uri-extensions": [
-                        ".jpeg",
-                        ".png"
-                    ]
+                    "format": "uri"
                 },
                 "type": {
                     "$ref": "#/definitions/Type"

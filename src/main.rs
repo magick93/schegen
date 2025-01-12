@@ -55,12 +55,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .arg("validate")
                 .arg(&schema_type)
                 .arg(&file)
-                .arg("--type")
-                .arg(if file.ends_with(".yaml") || file.ends_with(".yml") {
-                    "yaml"
-                } else {
-                    "json"
-                })
+                
                 .status()?;
             
             if !status.success() {
@@ -97,6 +92,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             target_dir,
         } => {
             let status = Command::new("schematools")
+                
+                // .arg("-vvvv ")
                 .arg("codegen")
                 .arg(&schema_type)
                 .arg(&file)

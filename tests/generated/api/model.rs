@@ -9,6 +9,7 @@
 
 use serde::{Serialize, Deserialize, Deserializer};
 use std::collections::BTreeMap;
+use utoipa::{ToSchema, ToResponse};
 use garde::Validate;
 use regex::Regex;
 use once_cell::sync::Lazy;
@@ -24,7 +25,49 @@ pub static FLOAT: Lazy<Regex> = Lazy::new(|| { Regex::new(r"^[0-9\.]+$").unwrap(
 
 
 
-#[derive(Deserialize, Serialize, Debug, Validate, Clone)]
+#[derive(Deserialize, Serialize, Debug, Validate, Clone, ToSchema, utoipa::ToResponse, utoipa::IntoParams)]
+#[derive(axum::response::IntoResponse)]
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "OperatorMetadataDto",
+    description = "Standard response model",
+    example = json!({
+        "operatorName": "ExampleOperatorname",
+        "description": "ExampleDescription",
+        "location": "ExampleLocation",
+        "setupProvider": "ExampleSetupprovider",
+        "eth1NodeClient": "ExampleEth1nodeclient",
+        "eth2NodeClient": "ExampleEth2nodeclient",
+        "mevRelays": "ExampleMevrelays",
+        "websiteUrl": "ExampleWebsiteurl",
+        "twitterUrl": "ExampleTwitterurl",
+        "linkedinUrl": "ExampleLinkedinurl",
+        "dkgAddress": "ExampleDkgaddress",
+        "logo": "ExampleLogo",
+        "signature": "ExampleSignature",
+    }),
+    component = "OperatorMetadataDto"
+)]
+#[response(
+    description = "Standard response model", 
+    content_type = "application/json",
+    example = json!({
+        "operatorName": "ExampleOperatorname",
+        "description": "ExampleDescription",
+        "location": "ExampleLocation",
+        "setupProvider": "ExampleSetupprovider",
+        "eth1NodeClient": "ExampleEth1nodeclient",
+        "eth2NodeClient": "ExampleEth2nodeclient",
+        "mevRelays": "ExampleMevrelays",
+        "websiteUrl": "ExampleWebsiteurl",
+        "twitterUrl": "ExampleTwitterurl",
+        "linkedinUrl": "ExampleLinkedinurl",
+        "dkgAddress": "ExampleDkgaddress",
+        "logo": "ExampleLogo",
+        "signature": "ExampleSignature",
+    }),
+    status = 200
+)]
 pub struct OperatorMetadataDto {#[garde(skip)]
     #[serde(rename = "operatorName", skip_serializing_if = "Option::is_none")]
     pub operator_name: Option<String>,#[garde(skip)]
@@ -54,7 +97,10 @@ pub struct OperatorMetadataDto {#[garde(skip)]
     pub signature: String,
 }
 
-impl OperatorMetadataDto { 
+impl OperatorMetadataDto {
+    pub fn into_response(self, status: axum::http::StatusCode) -> axum::response::Response {
+        (status, axum::Json(self)).into_response()
+    }
     pub fn new(operator_name: Option<String>, description: Option<String>, location: Option<String>, setup_provider: Option<String>, eth_1_node_client: Option<String>, eth_2_node_client: Option<String>, mev_relays: Option<String>, website_url: Option<String>, twitter_url: Option<String>, linkedin_url: Option<String>, dkg_address: Option<String>, logo: Option<String>, signature: String, ) -> Self {
         Self {
             operator_name,
@@ -79,13 +125,34 @@ impl OperatorMetadataDto {
 
 
 
-#[derive(Deserialize, Serialize, Debug, Validate, Clone)]
+#[derive(Deserialize, Serialize, Debug, Validate, Clone, ToSchema, utoipa::ToResponse, utoipa::IntoParams)]
+#[derive(axum::response::IntoResponse)]
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "DkgHealthCheckDto",
+    description = "Standard response model",
+    example = json!({
+        "dkgAddress": "ExampleDkgaddress",
+    }),
+    component = "DkgHealthCheckDto"
+)]
+#[response(
+    description = "Standard response model", 
+    content_type = "application/json",
+    example = json!({
+        "dkgAddress": "ExampleDkgaddress",
+    }),
+    status = 200
+)]
 pub struct DkgHealthCheckDto {#[garde(skip)]
     #[serde(rename = "dkgAddress")]
     pub dkg_address: String,
 }
 
-impl DkgHealthCheckDto { 
+impl DkgHealthCheckDto {
+    pub fn into_response(self, status: axum::http::StatusCode) -> axum::response::Response {
+        (status, axum::Json(self)).into_response()
+    }
     pub fn new(dkg_address: String, ) -> Self {
         Self {
             dkg_address,
@@ -98,13 +165,34 @@ impl DkgHealthCheckDto {
 
 
 
-#[derive(Deserialize, Serialize, Debug, Validate, Clone, Default)]
+#[derive(Deserialize, Serialize, Debug, Validate, Clone, ToSchema, utoipa::ToResponse, utoipa::IntoParams, Default)]
+#[derive(axum::response::IntoResponse)]
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "RegisteredByPublicKeysDto",
+    description = "Standard response model",
+    example = json!({
+        "publicKeys": vec!["ExampleRegisteredbypublickeysdtopublickeys"],
+    }),
+    component = "RegisteredByPublicKeysDto"
+)]
+#[response(
+    description = "Standard response model", 
+    content_type = "application/json",
+    example = json!({
+        "publicKeys": vec!["ExampleRegisteredbypublickeysdtopublickeys"],
+    }),
+    status = 200
+)]
 pub struct RegisteredByPublicKeysDto {#[garde(skip)]
     #[serde(rename = "publicKeys", skip_serializing_if = "Option::is_none")]
     pub public_keys: Option<Vec<String>>,
 }
 
-impl RegisteredByPublicKeysDto { 
+impl RegisteredByPublicKeysDto {
+    pub fn into_response(self, status: axum::http::StatusCode) -> axum::response::Response {
+        (status, axum::Json(self)).into_response()
+    }
     pub fn new(public_keys: Option<Vec<String>>, ) -> Self {
         Self {
             public_keys,
@@ -238,7 +326,29 @@ pub enum DutiesV4ControllerDutiesValidatorPathVariant {
 
 
 
-#[derive(Deserialize, Serialize, Debug, Validate, Clone)]
+#[derive(Deserialize, Serialize, Debug, Validate, Clone, ToSchema, utoipa::ToResponse, utoipa::IntoParams)]
+#[derive(axum::response::IntoResponse)]
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "FaucetControllerSetTransactionRequestBody",
+    description = "Standard response model",
+    example = json!({
+        "owner_address": "ExampleOwner_address",
+        "networkId": 3.14,
+        "version": "ExampleVersion",
+    }),
+    component = "FaucetControllerSetTransactionRequestBody"
+)]
+#[response(
+    description = "Standard response model", 
+    content_type = "application/json",
+    example = json!({
+        "owner_address": "ExampleOwner_address",
+        "networkId": 3.14,
+        "version": "ExampleVersion",
+    }),
+    status = 200
+)]
 pub struct FaucetControllerSetTransactionRequestBody {#[garde(skip)]
     #[serde(rename = "owner_address", skip_serializing_if = "Option::is_none")]
     pub owner_address: Option<String>,#[garde(skip)]
@@ -248,7 +358,10 @@ pub struct FaucetControllerSetTransactionRequestBody {#[garde(skip)]
     pub version: String,
 }
 
-impl FaucetControllerSetTransactionRequestBody { 
+impl FaucetControllerSetTransactionRequestBody {
+    pub fn into_response(self, status: axum::http::StatusCode) -> axum::response::Response {
+        (status, axum::Json(self)).into_response()
+    }
     pub fn new(owner_address: Option<String>, network_id: Option<f64>, version: String, ) -> Self {
         Self {
             owner_address,
@@ -363,13 +476,34 @@ pub enum OperatorsV4ControllerGetByPublicKeyPublicKeyPathVariant {
 
 
 
-#[derive(Deserialize, Serialize, Debug, Validate, Clone)]
+#[derive(Deserialize, Serialize, Debug, Validate, Clone, ToSchema, utoipa::ToResponse, utoipa::IntoParams)]
+#[derive(axum::response::IntoResponse)]
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "OperatorsV4ControllerGetByIdsRequestBody",
+    description = "Standard response model",
+    example = json!({
+        "ids": vec![3.14],
+    }),
+    component = "OperatorsV4ControllerGetByIdsRequestBody"
+)]
+#[response(
+    description = "Standard response model", 
+    content_type = "application/json",
+    example = json!({
+        "ids": vec![3.14],
+    }),
+    status = 200
+)]
 pub struct OperatorsV4ControllerGetByIdsRequestBody {#[garde(skip)]
     #[serde(rename = "ids")]
     pub ids: Vec<f64>,
 }
 
-impl OperatorsV4ControllerGetByIdsRequestBody { 
+impl OperatorsV4ControllerGetByIdsRequestBody {
+    pub fn into_response(self, status: axum::http::StatusCode) -> axum::response::Response {
+        (status, axum::Json(self)).into_response()
+    }
     pub fn new(ids: Vec<f64>, ) -> Self {
         Self {
             ids,
@@ -485,13 +619,34 @@ pub enum GetIsRegisteredValidatorValidatorPathVariant {
 
 
 
-#[derive(Deserialize, Serialize, Debug, Validate, Clone)]
+#[derive(Deserialize, Serialize, Debug, Validate, Clone, ToSchema, utoipa::ToResponse, utoipa::IntoParams)]
+#[derive(axum::response::IntoResponse)]
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "ApiV4ValidatorRegisteredByPublicKeyCreateRequestBody",
+    description = "Standard response model",
+    example = json!({
+        "publicKeys": vec!["ExampleApiv4validatorregisteredbypublickeycreaterequestbodypublickeys"],
+    }),
+    component = "ApiV4ValidatorRegisteredByPublicKeyCreateRequestBody"
+)]
+#[response(
+    description = "Standard response model", 
+    content_type = "application/json",
+    example = json!({
+        "publicKeys": vec!["ExampleApiv4validatorregisteredbypublickeycreaterequestbodypublickeys"],
+    }),
+    status = 200
+)]
 pub struct ApiV4ValidatorRegisteredByPublicKeyCreateRequestBody {#[garde(skip)]
     #[serde(rename = "publicKeys")]
     pub public_keys: Vec<String>,
 }
 
-impl ApiV4ValidatorRegisteredByPublicKeyCreateRequestBody { 
+impl ApiV4ValidatorRegisteredByPublicKeyCreateRequestBody {
+    pub fn into_response(self, status: axum::http::StatusCode) -> axum::response::Response {
+        (status, axum::Json(self)).into_response()
+    }
     pub fn new(public_keys: Vec<String>, ) -> Self {
         Self {
             public_keys,
@@ -526,13 +681,34 @@ pub enum ValidatorsV4ControllerDutyCountsToEpochPathVariant {
 
 
 
-#[derive(Deserialize, Serialize, Debug, Validate, Clone)]
+#[derive(Deserialize, Serialize, Debug, Validate, Clone, ToSchema, utoipa::ToResponse, utoipa::IntoParams)]
+#[derive(axum::response::IntoResponse)]
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "ApiV4ValidatorValidatorsWithdrawCredentialCreateRequestBody",
+    description = "Standard response model",
+    example = json!({
+        "publicKeys": vec!["ExampleApiv4validatorvalidatorswithdrawcredentialcreaterequestbodypublickeys"],
+    }),
+    component = "ApiV4ValidatorValidatorsWithdrawCredentialCreateRequestBody"
+)]
+#[response(
+    description = "Standard response model", 
+    content_type = "application/json",
+    example = json!({
+        "publicKeys": vec!["ExampleApiv4validatorvalidatorswithdrawcredentialcreaterequestbodypublickeys"],
+    }),
+    status = 200
+)]
 pub struct ApiV4ValidatorValidatorsWithdrawCredentialCreateRequestBody {#[garde(skip)]
     #[serde(rename = "publicKeys")]
     pub public_keys: Vec<String>,
 }
 
-impl ApiV4ValidatorValidatorsWithdrawCredentialCreateRequestBody { 
+impl ApiV4ValidatorValidatorsWithdrawCredentialCreateRequestBody {
+    pub fn into_response(self, status: axum::http::StatusCode) -> axum::response::Response {
+        (status, axum::Json(self)).into_response()
+    }
     pub fn new(public_keys: Vec<String>, ) -> Self {
         Self {
             public_keys,

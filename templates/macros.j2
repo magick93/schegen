@@ -248,3 +248,31 @@
         1
     {% endif %}
 {% endfilter %}{% endmacro need_nested_validation %}
+
+{% macro example_value(property) %}{% filter nospaces %}
+    {% if property.type == "string" %}
+        {% if property.validation is defined and property.validation.format is defined %}
+            {% if property.validation.format == "date-time" %}
+                "2023-01-01T00:00:00Z"
+            {% elif property.validation.format == "uuid" %}
+                "550e8400-e29b-41d4-a716-446655440000"
+            {% else %}
+                "Example {{ property.name | title }}"
+            {% endif %}
+        {% else %}
+            "Example {{ property.name | title }}"
+        {% endif %}
+    {% elif property.type == "integer" %}
+        42
+    {% elif property.type == "number" %}
+        3.14
+    {% elif property.type == "boolean" %}
+        true
+    {% elif property.type == "enum" %}
+        {{ property.model.variants[0].name | pascalcase }}
+    {% elif property.type == "array" %}
+        vec![{{ self::example_value(property=property.model) }}]
+    {% else %}
+        "UNKNOWN_TYPE"
+    {% endif %}
+{% endfilter %}{% endmacro example_value %}

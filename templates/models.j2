@@ -1,9 +1,10 @@
 {% import "macros.j2" as m -%}
-{% import "extensions.j2" as e -%}
+i{% import "extensions.j2" as e -%}
 {# if wrappers include #}
 {{ m::do_not_modify() }}
 use serde::{Serialize, Deserialize, Deserializer};
 use std::collections::BTreeMap;
+use utoipa::{ToSchema, ToResponse};
 {% if not options.skipValidate %}use garde::Validate;
 use regex::Regex;
 use once_cell::sync::Lazy;{% endif %}
@@ -26,7 +27,29 @@ pub static {{ regexp.name | snakecase | upper }}: Lazy<Regex> = Lazy::new(|| { R
 
 {% for model in models %}
 {%- if model.object %}
-#[derive(Deserialize, Serialize, Debug,{% if not options.skipValidate %} Validate,{% endif %} Clone{% if model.object.properties | filter(attribute="required", value=true) | length == 0 %}, Default{% endif %})]
+#[derive(Deserialize, Serialize, Debug,{% if not options.skipValidate %} Validate,{% endif %} Clone, ToSchema, utoipa::ToResponse, utoipa::IntoParams{% if model.object.properties | filter(attribute="required", value=true) | length == 0 %}, Default{% endif %})]
+#[derive(axum::response::IntoResponse)]
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "{{ model.object.name }}",
+    description = "{{ model.object.description | default(value="Standard response model") }}",
+    example = json!({
+        {%- for property in model.object.properties %}
+        "{{ property.name }}": {{ m::example_value(property=property) }},
+        {%- endfor %}
+    }),
+    component = "{{ model.object.name }}"
+)]
+#[response(
+    description = "{{ model.object.description | default(value="Standard response model") }}", 
+    content_type = "application/json",
+    example = json!({
+        {%- for property in model.object.properties %}
+        "{{ property.name }}": {{ m::example_value(property=property) }},
+        {%- endfor %}
+    }),
+    status = 200
+)]
 pub struct {{ m::model_name(name = model.object.name) }} {
     {%- set filtered_properties = model.object.properties | filter_not(attribute="type", value="const") -%}
     {% for property in filtered_properties -%}
@@ -36,7 +59,10 @@ pub struct {{ m::model_name(name = model.object.name) }} {
     {%- endfor %}
 }
 
-impl {{ m::model_name(name = model.object.name) }} { {# if sort required first #}
+impl {{ m::model_name(name = model.object.name) }} {
+    pub fn into_response(self, status: axum::http::StatusCode) -> axum::response::Response {
+        (status, axum::Json(self)).into_response()
+    }
     pub fn new({%- for property in filtered_properties -%}{{ m::property_name(name = property.name) }}: {% if not property.required %}Option<{% endif %}{{ m::type(property = property) }}{% if not property.required %}>{% endif %}, {% endfor %}) -> Self {
         Self {
             {% for property in filtered_properties %}{{ m::property_name(name = property.name) }},

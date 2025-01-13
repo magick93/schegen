@@ -36,7 +36,20 @@ pub struct Claims {
 }
 
 /// Item to do.
-#[derive(Serialize, Deserialize, ToSchema, Clone)]
+#[derive(Serialize, Deserialize, ToSchema, Clone, utoipa::ToResponse)]
+#[schema(
+    title = "Todo",
+    description = "A todo item with id, value and completion status",
+    example = json!({
+        "id": 1,
+        "value": "Buy groceries",
+        "done": false
+    })
+)]
+#[response(
+    description = "Standard todo item response",
+    content_type = "application/json"
+)]
 struct Todo {
     id: i32,
     #[schema(example = "Buy groceries")]
@@ -81,8 +94,12 @@ pub struct RateLimitResponse {
 
 #[derive(Debug, ToSchema, Serialize, Deserialize, IntoResponse, ToResponse)]
 #[response(description = "Standard success response containing a message")]
+#[schema(example = json!({
+    "message": "Hello World"
+}))]
 pub struct HelloWorldResponse {
     /// The message returned by the API
+    #[schema(example = "Hello World")]
     message: String,
 }
 

@@ -36,7 +36,20 @@ pub struct Claims {
 }
 
 /// Item to do.
-#[derive(Serialize, Deserialize, ToSchema, Clone)]
+#[derive(Serialize, Deserialize, ToSchema, Clone, utoipa::ToResponse)]
+#[schema(
+    title = "Todo",
+    description = "A todo item with id, value and completion status",
+    example = json!({
+        "id": 1,
+        "value": "Buy groceries",
+        "done": false
+    })
+)]
+#[response(
+    description = "Standard todo item response",
+    content_type = "application/json"
+)]
 struct Todo {
     id: i32,
     #[schema(example = "Buy groceries")]
@@ -299,6 +312,10 @@ mod todo {
     pub async fn delete_todo(
         Path(id): Path<i32>,
         State(store): State<Arc<Store>>,
+        headers: HeaderMap,
+    ) -> impl IntoResponse {
+        match check_api_key(true, headers) {
+            Ok(_) => (),
             Err(error) => return error.into_response(),
         }
 

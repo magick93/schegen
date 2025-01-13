@@ -1,5 +1,5 @@
 {% import "macros.j2" as m -%}
-i{% import "extensions.j2" as e -%}
+{% import "extensions.j2" as e -%}
 {# if wrappers include #}
 {{ m::do_not_modify() }}
 use serde::{Serialize, Deserialize, Deserializer};

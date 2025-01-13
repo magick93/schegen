@@ -13,6 +13,8 @@ use axum::{
     routing::{self, on_service, MethodFilter},
     Router, BoxError,
 };
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 use futures::{future::LocalBoxFuture, Future};
 use std::{
     convert::{Infallible, TryFrom},
@@ -50,8 +52,11 @@ pub struct {{ tag.tag | pascalcase }}Router<S = ()> {
 
 impl<S> {{ tag.tag | pascalcase }}Router<S> where S: Clone + Send + Sync + 'static {
     pub fn new() -> Self {
+        let router = Router::new()
+            .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", OpenApi::openapi()));
+
         Self {
-            router: Router::new()
+            router
         }
     }
 
@@ -79,7 +84,15 @@ impl<S> {{ tag.tag | pascalcase }}Router<S> where S: Clone + Send + Sync + 'stat
             H: {% if strict_router %}{{ endpoint.operation | pascalcase }}Handler<T, S>{% else %}Handler<T, S> + Clone + Send + Sync + 'static{% endif %},
             T: 'static
     {
-        self.router = self.router.route("{{ endpoint.path | replace(from="{", to=":") | replace(from="}", to="") }}", {% if strict_router -%}on_service(MethodFilter::{{ endpoint.method | upper }}, {{ endpoint.operation | pascalcase }}Service::new{%- else -%}{{ endpoint.method | lower }}{%- endif -%}(handler){% if strict_router %}){% endif %});
+        self.router = self.router
+            .route("{{ endpoint.path | replace(from="{", to=":") | replace(from="}", to="") }}", 
+                {% if strict_router -%}
+                on_service(MethodFilter::{{ endpoint.method | upper }}, {{ endpoint.operation | pascalcase }}Service::new
+                {%- else -%}
+                {{ endpoint.method | lower }}
+                {%- endif -%}
+                (handler){% if strict_router %}){% endif %})
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
     {%- endfor %}
@@ -203,6 +216,11 @@ macro_rules! {{ endpoint.operation | snakecase }}_handler {
 all_the_tuples!({{ endpoint.operation | snakecase }}_handler);
 
 /// {{ endpoint.method | upper }} {{ endpoint.path }} service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "{{ endpoint.operation | pascalcase }}Service",
+    description = "Service handler for {{ endpoint.method | upper }} {{ endpoint.path }}"
+)]
 struct {{ endpoint.operation | pascalcase }}Service<H, T, S>
 where
     H: {{ endpoint.operation | pascalcase }}Handler<T, S> {
@@ -233,6 +251,15 @@ where
     }
 }
 
+#[utoipa::path(
+    {{ endpoint.method | lower }},
+    path = "{{ endpoint.path }}",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for {{ endpoint.operation | pascalcase }}Service<H, T, S>
 where
     H: {{ endpoint.operation | pascalcase }}Handler<T, S>,

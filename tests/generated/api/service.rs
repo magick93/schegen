@@ -15,6 +15,8 @@ use axum::{
     routing::{self, on_service, MethodFilter},
     Router, BoxError,
 };
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 use futures::{future::LocalBoxFuture, Future};
 use std::{
     convert::{Infallible, TryFrom},
@@ -40,8 +42,11 @@ pub struct AccountsRouter<S = ()> {
 
 impl<S> AccountsRouter<S> where S: Clone + Send + Sync + 'static {
     pub fn new() -> Self {
+        let router = Router::new()
+            .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", OpenApi::openapi()));
+
         Self {
-            router: Router::new()
+            router
         }
     }
 
@@ -67,7 +72,10 @@ impl<S> AccountsRouter<S> where S: Clone + Send + Sync + 'static {
             H: AccountV4ControllerListHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/accounts", on_service(MethodFilter::GET, AccountV4ControllerListService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/accounts", 
+                on_service(MethodFilter::GET, AccountV4ControllerListService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 
@@ -93,7 +101,10 @@ impl<S> AccountsRouter<S> where S: Clone + Send + Sync + 'static {
             H: AccountV4ControllerByIdHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/accounts/:ownerAddress", on_service(MethodFilter::GET, AccountV4ControllerByIdService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/accounts/:ownerAddress", 
+                on_service(MethodFilter::GET, AccountV4ControllerByIdService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 
@@ -119,7 +130,10 @@ impl<S> AccountsRouter<S> where S: Clone + Send + Sync + 'static {
             H: ApiV4AccountsCountsGetHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/accounts/counts/:ownerAddress", on_service(MethodFilter::GET, ApiV4AccountsCountsGetService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/accounts/counts/:ownerAddress", 
+                on_service(MethodFilter::GET, ApiV4AccountsCountsGetService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 }
@@ -234,6 +248,11 @@ macro_rules! account_v4_controller_list_handler {
 all_the_tuples!(account_v4_controller_list_handler);
 
 /// GET /api/v4/{network}/accounts service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "AccountV4ControllerListService",
+    description = "Service handler for GET /api/v4/{network}/accounts"
+)]
 struct AccountV4ControllerListService<H, T, S>
 where
     H: AccountV4ControllerListHandler<T, S> {
@@ -264,6 +283,15 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v4/{network}/accounts",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for AccountV4ControllerListService<H, T, S>
 where
     H: AccountV4ControllerListHandler<T, S>,
@@ -382,6 +410,11 @@ macro_rules! account_v4_controller_by_id_handler {
 all_the_tuples!(account_v4_controller_by_id_handler);
 
 /// GET /api/v4/{network}/accounts/{ownerAddress} service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "AccountV4ControllerByIdService",
+    description = "Service handler for GET /api/v4/{network}/accounts/{ownerAddress}"
+)]
 struct AccountV4ControllerByIdService<H, T, S>
 where
     H: AccountV4ControllerByIdHandler<T, S> {
@@ -412,6 +445,15 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v4/{network}/accounts/{ownerAddress}",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for AccountV4ControllerByIdService<H, T, S>
 where
     H: AccountV4ControllerByIdHandler<T, S>,
@@ -530,6 +572,11 @@ macro_rules! api_v4_accounts_counts_get_handler {
 all_the_tuples!(api_v4_accounts_counts_get_handler);
 
 /// GET /api/v4/{network}/accounts/counts/{ownerAddress} service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "ApiV4AccountsCountsGetService",
+    description = "Service handler for GET /api/v4/{network}/accounts/counts/{ownerAddress}"
+)]
 struct ApiV4AccountsCountsGetService<H, T, S>
 where
     H: ApiV4AccountsCountsGetHandler<T, S> {
@@ -560,6 +607,15 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v4/{network}/accounts/counts/{ownerAddress}",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for ApiV4AccountsCountsGetService<H, T, S>
 where
     H: ApiV4AccountsCountsGetHandler<T, S>,
@@ -596,8 +652,11 @@ pub struct ClustersRouter<S = ()> {
 
 impl<S> ClustersRouter<S> where S: Clone + Send + Sync + 'static {
     pub fn new() -> Self {
+        let router = Router::new()
+            .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", OpenApi::openapi()));
+
         Self {
-            router: Router::new()
+            router
         }
     }
 
@@ -623,7 +682,10 @@ impl<S> ClustersRouter<S> where S: Clone + Send + Sync + 'static {
             H: ClusterV4ControllerCountHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/clusters/count", on_service(MethodFilter::GET, ClusterV4ControllerCountService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/clusters/count", 
+                on_service(MethodFilter::GET, ClusterV4ControllerCountService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 
@@ -649,7 +711,10 @@ impl<S> ClustersRouter<S> where S: Clone + Send + Sync + 'static {
             H: ClusterV4ControllerListHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/clusters", on_service(MethodFilter::GET, ClusterV4ControllerListService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/clusters", 
+                on_service(MethodFilter::GET, ClusterV4ControllerListService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 
@@ -675,7 +740,10 @@ impl<S> ClustersRouter<S> where S: Clone + Send + Sync + 'static {
             H: ClusterV4ControllerUpdatesHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/clusters/updates", on_service(MethodFilter::GET, ClusterV4ControllerUpdatesService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/clusters/updates", 
+                on_service(MethodFilter::GET, ClusterV4ControllerUpdatesService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 
@@ -701,7 +769,10 @@ impl<S> ClustersRouter<S> where S: Clone + Send + Sync + 'static {
             H: ClusterV4ControllerByIdHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/clusters/:id", on_service(MethodFilter::GET, ClusterV4ControllerByIdService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/clusters/:id", 
+                on_service(MethodFilter::GET, ClusterV4ControllerByIdService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 
@@ -727,7 +798,10 @@ impl<S> ClustersRouter<S> where S: Clone + Send + Sync + 'static {
             H: ClusterV4ControllerByOwnerAndOperatorsHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/clusters/owner/:owner/operators/:operators", on_service(MethodFilter::GET, ClusterV4ControllerByOwnerAndOperatorsService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/clusters/owner/:owner/operators/:operators", 
+                on_service(MethodFilter::GET, ClusterV4ControllerByOwnerAndOperatorsService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 
@@ -753,7 +827,10 @@ impl<S> ClustersRouter<S> where S: Clone + Send + Sync + 'static {
             H: ClusterV4ControllerByOwnerHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/clusters/owner/:owner", on_service(MethodFilter::GET, ClusterV4ControllerByOwnerService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/clusters/owner/:owner", 
+                on_service(MethodFilter::GET, ClusterV4ControllerByOwnerService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 
@@ -779,7 +856,10 @@ impl<S> ClustersRouter<S> where S: Clone + Send + Sync + 'static {
             H: ClusterV4ControllerValidatorsHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/clusters/hash/:clusterHash", on_service(MethodFilter::GET, ClusterV4ControllerValidatorsService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/clusters/hash/:clusterHash", 
+                on_service(MethodFilter::GET, ClusterV4ControllerValidatorsService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 }
@@ -886,6 +966,11 @@ macro_rules! cluster_v4_controller_count_handler {
 all_the_tuples!(cluster_v4_controller_count_handler);
 
 /// GET /api/v4/{network}/clusters/count service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "ClusterV4ControllerCountService",
+    description = "Service handler for GET /api/v4/{network}/clusters/count"
+)]
 struct ClusterV4ControllerCountService<H, T, S>
 where
     H: ClusterV4ControllerCountHandler<T, S> {
@@ -916,6 +1001,15 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v4/{network}/clusters/count",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for ClusterV4ControllerCountService<H, T, S>
 where
     H: ClusterV4ControllerCountHandler<T, S>,
@@ -1042,6 +1136,11 @@ macro_rules! cluster_v4_controller_list_handler {
 all_the_tuples!(cluster_v4_controller_list_handler);
 
 /// GET /api/v4/{network}/clusters service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "ClusterV4ControllerListService",
+    description = "Service handler for GET /api/v4/{network}/clusters"
+)]
 struct ClusterV4ControllerListService<H, T, S>
 where
     H: ClusterV4ControllerListHandler<T, S> {
@@ -1072,6 +1171,15 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v4/{network}/clusters",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for ClusterV4ControllerListService<H, T, S>
 where
     H: ClusterV4ControllerListHandler<T, S>,
@@ -1198,6 +1306,11 @@ macro_rules! cluster_v4_controller_updates_handler {
 all_the_tuples!(cluster_v4_controller_updates_handler);
 
 /// GET /api/v4/{network}/clusters/updates service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "ClusterV4ControllerUpdatesService",
+    description = "Service handler for GET /api/v4/{network}/clusters/updates"
+)]
 struct ClusterV4ControllerUpdatesService<H, T, S>
 where
     H: ClusterV4ControllerUpdatesHandler<T, S> {
@@ -1228,6 +1341,15 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v4/{network}/clusters/updates",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for ClusterV4ControllerUpdatesService<H, T, S>
 where
     H: ClusterV4ControllerUpdatesHandler<T, S>,
@@ -1354,6 +1476,11 @@ macro_rules! cluster_v4_controller_by_id_handler {
 all_the_tuples!(cluster_v4_controller_by_id_handler);
 
 /// GET /api/v4/{network}/clusters/{id} service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "ClusterV4ControllerByIdService",
+    description = "Service handler for GET /api/v4/{network}/clusters/{id}"
+)]
 struct ClusterV4ControllerByIdService<H, T, S>
 where
     H: ClusterV4ControllerByIdHandler<T, S> {
@@ -1384,6 +1511,15 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v4/{network}/clusters/{id}",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for ClusterV4ControllerByIdService<H, T, S>
 where
     H: ClusterV4ControllerByIdHandler<T, S>,
@@ -1510,6 +1646,11 @@ macro_rules! cluster_v4_controller_by_owner_and_operators_handler {
 all_the_tuples!(cluster_v4_controller_by_owner_and_operators_handler);
 
 /// GET /api/v4/{network}/clusters/owner/{owner}/operators/{operators} service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "ClusterV4ControllerByOwnerAndOperatorsService",
+    description = "Service handler for GET /api/v4/{network}/clusters/owner/{owner}/operators/{operators}"
+)]
 struct ClusterV4ControllerByOwnerAndOperatorsService<H, T, S>
 where
     H: ClusterV4ControllerByOwnerAndOperatorsHandler<T, S> {
@@ -1540,6 +1681,15 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v4/{network}/clusters/owner/{owner}/operators/{operators}",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for ClusterV4ControllerByOwnerAndOperatorsService<H, T, S>
 where
     H: ClusterV4ControllerByOwnerAndOperatorsHandler<T, S>,
@@ -1666,6 +1816,11 @@ macro_rules! cluster_v4_controller_by_owner_handler {
 all_the_tuples!(cluster_v4_controller_by_owner_handler);
 
 /// GET /api/v4/{network}/clusters/owner/{owner} service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "ClusterV4ControllerByOwnerService",
+    description = "Service handler for GET /api/v4/{network}/clusters/owner/{owner}"
+)]
 struct ClusterV4ControllerByOwnerService<H, T, S>
 where
     H: ClusterV4ControllerByOwnerHandler<T, S> {
@@ -1696,6 +1851,15 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v4/{network}/clusters/owner/{owner}",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for ClusterV4ControllerByOwnerService<H, T, S>
 where
     H: ClusterV4ControllerByOwnerHandler<T, S>,
@@ -1822,6 +1986,11 @@ macro_rules! cluster_v4_controller_validators_handler {
 all_the_tuples!(cluster_v4_controller_validators_handler);
 
 /// GET /api/v4/{network}/clusters/hash/{clusterHash} service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "ClusterV4ControllerValidatorsService",
+    description = "Service handler for GET /api/v4/{network}/clusters/hash/{clusterHash}"
+)]
 struct ClusterV4ControllerValidatorsService<H, T, S>
 where
     H: ClusterV4ControllerValidatorsHandler<T, S> {
@@ -1852,6 +2021,15 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v4/{network}/clusters/hash/{clusterHash}",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for ClusterV4ControllerValidatorsService<H, T, S>
 where
     H: ClusterV4ControllerValidatorsHandler<T, S>,
@@ -1888,8 +2066,11 @@ pub struct DutiesRouter<S = ()> {
 
 impl<S> DutiesRouter<S> where S: Clone + Send + Sync + 'static {
     pub fn new() -> Self {
+        let router = Router::new()
+            .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", OpenApi::openapi()));
+
         Self {
-            router: Router::new()
+            router
         }
     }
 
@@ -1915,7 +2096,10 @@ impl<S> DutiesRouter<S> where S: Clone + Send + Sync + 'static {
             H: DutiesV4ControllerDutiesHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/duties/:validator", on_service(MethodFilter::GET, DutiesV4ControllerDutiesService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/duties/:validator", 
+                on_service(MethodFilter::GET, DutiesV4ControllerDutiesService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 }
@@ -2030,6 +2214,11 @@ macro_rules! duties_v4_controller_duties_handler {
 all_the_tuples!(duties_v4_controller_duties_handler);
 
 /// GET /api/v4/{network}/duties/{validator} service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "DutiesV4ControllerDutiesService",
+    description = "Service handler for GET /api/v4/{network}/duties/{validator}"
+)]
 struct DutiesV4ControllerDutiesService<H, T, S>
 where
     H: DutiesV4ControllerDutiesHandler<T, S> {
@@ -2060,6 +2249,15 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v4/{network}/duties/{validator}",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for DutiesV4ControllerDutiesService<H, T, S>
 where
     H: DutiesV4ControllerDutiesHandler<T, S>,
@@ -2096,8 +2294,11 @@ pub struct EventsRouter<S = ()> {
 
 impl<S> EventsRouter<S> where S: Clone + Send + Sync + 'static {
     pub fn new() -> Self {
+        let router = Router::new()
+            .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", OpenApi::openapi()));
+
         Self {
-            router: Router::new()
+            router
         }
     }
 
@@ -2123,7 +2324,10 @@ impl<S> EventsRouter<S> where S: Clone + Send + Sync + 'static {
             H: ApiV4EventsGetHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/events/:txHash", on_service(MethodFilter::GET, ApiV4EventsGetService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/events/:txHash", 
+                on_service(MethodFilter::GET, ApiV4EventsGetService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 }
@@ -2230,6 +2434,11 @@ macro_rules! api_v4_events_get_handler {
 all_the_tuples!(api_v4_events_get_handler);
 
 /// GET /api/v4/{network}/events/{txHash} service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "ApiV4EventsGetService",
+    description = "Service handler for GET /api/v4/{network}/events/{txHash}"
+)]
 struct ApiV4EventsGetService<H, T, S>
 where
     H: ApiV4EventsGetHandler<T, S> {
@@ -2260,6 +2469,15 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v4/{network}/events/{txHash}",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for ApiV4EventsGetService<H, T, S>
 where
     H: ApiV4EventsGetHandler<T, S>,
@@ -2296,8 +2514,11 @@ pub struct FaucetRouter<S = ()> {
 
 impl<S> FaucetRouter<S> where S: Clone + Send + Sync + 'static {
     pub fn new() -> Self {
+        let router = Router::new()
+            .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", OpenApi::openapi()));
+
         Self {
-            router: Router::new()
+            router
         }
     }
 
@@ -2323,7 +2544,10 @@ impl<S> FaucetRouter<S> where S: Clone + Send + Sync + 'static {
             H: FaucetControllerGetTransactionsHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/faucet", on_service(MethodFilter::GET, FaucetControllerGetTransactionsService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/faucet", 
+                on_service(MethodFilter::GET, FaucetControllerGetTransactionsService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 
@@ -2349,7 +2573,10 @@ impl<S> FaucetRouter<S> where S: Clone + Send + Sync + 'static {
             H: FaucetControllerSetTransactionHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/faucet", on_service(MethodFilter::POST, FaucetControllerSetTransactionService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/faucet", 
+                on_service(MethodFilter::POST, FaucetControllerSetTransactionService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 
@@ -2375,7 +2602,10 @@ impl<S> FaucetRouter<S> where S: Clone + Send + Sync + 'static {
             H: FaucetControllerGetFaucetConfigHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/faucet/config", on_service(MethodFilter::GET, FaucetControllerGetFaucetConfigService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/faucet/config", 
+                on_service(MethodFilter::GET, FaucetControllerGetFaucetConfigService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 }
@@ -2482,6 +2712,11 @@ macro_rules! faucet_controller_get_transactions_handler {
 all_the_tuples!(faucet_controller_get_transactions_handler);
 
 /// GET /api/v4/{network}/faucet service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "FaucetControllerGetTransactionsService",
+    description = "Service handler for GET /api/v4/{network}/faucet"
+)]
 struct FaucetControllerGetTransactionsService<H, T, S>
 where
     H: FaucetControllerGetTransactionsHandler<T, S> {
@@ -2512,6 +2747,15 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v4/{network}/faucet",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for FaucetControllerGetTransactionsService<H, T, S>
 where
     H: FaucetControllerGetTransactionsHandler<T, S>,
@@ -2640,6 +2884,11 @@ macro_rules! faucet_controller_set_transaction_handler {
 all_the_tuples!(faucet_controller_set_transaction_handler);
 
 /// POST /api/v4/{network}/faucet service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "FaucetControllerSetTransactionService",
+    description = "Service handler for POST /api/v4/{network}/faucet"
+)]
 struct FaucetControllerSetTransactionService<H, T, S>
 where
     H: FaucetControllerSetTransactionHandler<T, S> {
@@ -2670,6 +2919,15 @@ where
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/v4/{network}/faucet",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for FaucetControllerSetTransactionService<H, T, S>
 where
     H: FaucetControllerSetTransactionHandler<T, S>,
@@ -2788,6 +3046,11 @@ macro_rules! faucet_controller_get_faucet_config_handler {
 all_the_tuples!(faucet_controller_get_faucet_config_handler);
 
 /// GET /api/v4/{network}/faucet/config service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "FaucetControllerGetFaucetConfigService",
+    description = "Service handler for GET /api/v4/{network}/faucet/config"
+)]
 struct FaucetControllerGetFaucetConfigService<H, T, S>
 where
     H: FaucetControllerGetFaucetConfigHandler<T, S> {
@@ -2818,6 +3081,15 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v4/{network}/faucet/config",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for FaucetControllerGetFaucetConfigService<H, T, S>
 where
     H: FaucetControllerGetFaucetConfigHandler<T, S>,
@@ -2854,8 +3126,11 @@ pub struct FinanceRouter<S = ()> {
 
 impl<S> FinanceRouter<S> where S: Clone + Send + Sync + 'static {
     pub fn new() -> Self {
+        let router = Router::new()
+            .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", OpenApi::openapi()));
+
         Self {
-            router: Router::new()
+            router
         }
     }
 
@@ -2881,7 +3156,10 @@ impl<S> FinanceRouter<S> where S: Clone + Send + Sync + 'static {
             H: FinanceControllerCurrencyConvertHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/finance/currency/convert/:symbol/:quote", on_service(MethodFilter::GET, FinanceControllerCurrencyConvertService::new(handler)));
+        self.router = self.router
+            .route("/api/finance/currency/convert/:symbol/:quote", 
+                on_service(MethodFilter::GET, FinanceControllerCurrencyConvertService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 }
@@ -2988,6 +3266,11 @@ macro_rules! finance_controller_currency_convert_handler {
 all_the_tuples!(finance_controller_currency_convert_handler);
 
 /// GET /api/finance/currency/convert/{symbol}/{quote} service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "FinanceControllerCurrencyConvertService",
+    description = "Service handler for GET /api/finance/currency/convert/{symbol}/{quote}"
+)]
 struct FinanceControllerCurrencyConvertService<H, T, S>
 where
     H: FinanceControllerCurrencyConvertHandler<T, S> {
@@ -3018,6 +3301,15 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/finance/currency/convert/{symbol}/{quote}",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for FinanceControllerCurrencyConvertService<H, T, S>
 where
     H: FinanceControllerCurrencyConvertHandler<T, S>,
@@ -3054,8 +3346,11 @@ pub struct GraphRouter<S = ()> {
 
 impl<S> GraphRouter<S> where S: Clone + Send + Sync + 'static {
     pub fn new() -> Self {
+        let router = Router::new()
+            .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", OpenApi::openapi()));
+
         Self {
-            router: Router::new()
+            router
         }
     }
 
@@ -3081,7 +3376,10 @@ impl<S> GraphRouter<S> where S: Clone + Send + Sync + 'static {
             H: OperatorsV4ControllerGraphHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/operators/graph", on_service(MethodFilter::GET, OperatorsV4ControllerGraphService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/operators/graph", 
+                on_service(MethodFilter::GET, OperatorsV4ControllerGraphService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 }
@@ -3196,6 +3494,11 @@ macro_rules! operators_v4_controller_graph_handler {
 all_the_tuples!(operators_v4_controller_graph_handler);
 
 /// GET /api/v4/{network}/operators/graph service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "OperatorsV4ControllerGraphService",
+    description = "Service handler for GET /api/v4/{network}/operators/graph"
+)]
 struct OperatorsV4ControllerGraphService<H, T, S>
 where
     H: OperatorsV4ControllerGraphHandler<T, S> {
@@ -3226,6 +3529,15 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v4/{network}/operators/graph",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for OperatorsV4ControllerGraphService<H, T, S>
 where
     H: OperatorsV4ControllerGraphHandler<T, S>,
@@ -3262,8 +3574,11 @@ pub struct HealthRouter<S = ()> {
 
 impl<S> HealthRouter<S> where S: Clone + Send + Sync + 'static {
     pub fn new() -> Self {
+        let router = Router::new()
+            .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", OpenApi::openapi()));
+
         Self {
-            router: Router::new()
+            router
         }
     }
 
@@ -3289,7 +3604,10 @@ impl<S> HealthRouter<S> where S: Clone + Send + Sync + 'static {
             H: HealthV4ControllerHealthHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/health", on_service(MethodFilter::GET, HealthV4ControllerHealthService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/health", 
+                on_service(MethodFilter::GET, HealthV4ControllerHealthService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 }
@@ -3396,6 +3714,11 @@ macro_rules! health_v4_controller_health_handler {
 all_the_tuples!(health_v4_controller_health_handler);
 
 /// GET /api/v4/{network}/health service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "HealthV4ControllerHealthService",
+    description = "Service handler for GET /api/v4/{network}/health"
+)]
 struct HealthV4ControllerHealthService<H, T, S>
 where
     H: HealthV4ControllerHealthHandler<T, S> {
@@ -3426,6 +3749,15 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v4/{network}/health",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for HealthV4ControllerHealthService<H, T, S>
 where
     H: HealthV4ControllerHealthHandler<T, S>,
@@ -3462,8 +3794,11 @@ pub struct IncentivizedRouter<S = ()> {
 
 impl<S> IncentivizedRouter<S> where S: Clone + Send + Sync + 'static {
     pub fn new() -> Self {
+        let router = Router::new()
+            .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", OpenApi::openapi()));
+
         Self {
-            router: Router::new()
+            router
         }
     }
 
@@ -3489,7 +3824,10 @@ impl<S> IncentivizedRouter<S> where S: Clone + Send + Sync + 'static {
             H: IncentivizationV4ControllerMigrationOperatorsDistributionHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/incentivization/merkle-tree", on_service(MethodFilter::GET, IncentivizationV4ControllerMigrationOperatorsDistributionService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/incentivization/merkle-tree", 
+                on_service(MethodFilter::GET, IncentivizationV4ControllerMigrationOperatorsDistributionService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 }
@@ -3596,6 +3934,11 @@ macro_rules! incentivization_v4_controller_migration_operators_distribution_hand
 all_the_tuples!(incentivization_v4_controller_migration_operators_distribution_handler);
 
 /// GET /api/v4/{network}/incentivization/merkle-tree service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "IncentivizationV4ControllerMigrationOperatorsDistributionService",
+    description = "Service handler for GET /api/v4/{network}/incentivization/merkle-tree"
+)]
 struct IncentivizationV4ControllerMigrationOperatorsDistributionService<H, T, S>
 where
     H: IncentivizationV4ControllerMigrationOperatorsDistributionHandler<T, S> {
@@ -3626,6 +3969,15 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v4/{network}/incentivization/merkle-tree",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for IncentivizationV4ControllerMigrationOperatorsDistributionService<H, T, S>
 where
     H: IncentivizationV4ControllerMigrationOperatorsDistributionHandler<T, S>,
@@ -3662,8 +4014,11 @@ pub struct OperatorsRouter<S = ()> {
 
 impl<S> OperatorsRouter<S> where S: Clone + Send + Sync + 'static {
     pub fn new() -> Self {
+        let router = Router::new()
+            .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", OpenApi::openapi()));
+
         Self {
-            router: Router::new()
+            router
         }
     }
 
@@ -3689,7 +4044,10 @@ impl<S> OperatorsRouter<S> where S: Clone + Send + Sync + 'static {
             H: OperatorsV4ControllerGraphHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/operators/graph", on_service(MethodFilter::GET, OperatorsV4ControllerGraphService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/operators/graph", 
+                on_service(MethodFilter::GET, OperatorsV4ControllerGraphService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 
@@ -3715,7 +4073,10 @@ impl<S> OperatorsRouter<S> where S: Clone + Send + Sync + 'static {
             H: OperatorsV4ControllerOwnedByHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/operators/owned_by/:ownerAddress", on_service(MethodFilter::GET, OperatorsV4ControllerOwnedByService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/operators/owned_by/:ownerAddress", 
+                on_service(MethodFilter::GET, OperatorsV4ControllerOwnedByService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 
@@ -3741,7 +4102,10 @@ impl<S> OperatorsRouter<S> where S: Clone + Send + Sync + 'static {
             H: OperatorsV4ControllerIncentivizedHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/operators/incentivized/:operator", on_service(MethodFilter::GET, OperatorsV4ControllerIncentivizedService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/operators/incentivized/:operator", 
+                on_service(MethodFilter::GET, OperatorsV4ControllerIncentivizedService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 
@@ -3767,7 +4131,10 @@ impl<S> OperatorsRouter<S> where S: Clone + Send + Sync + 'static {
             H: OperatorsV4ControllerGetOperatorHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/operators/:operator", on_service(MethodFilter::GET, OperatorsV4ControllerGetOperatorService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/operators/:operator", 
+                on_service(MethodFilter::GET, OperatorsV4ControllerGetOperatorService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 
@@ -3793,7 +4160,10 @@ impl<S> OperatorsRouter<S> where S: Clone + Send + Sync + 'static {
             H: OperatorsV4ControllerGetDkgHealthCheckHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/operators/dkg_health_check", on_service(MethodFilter::POST, OperatorsV4ControllerGetDkgHealthCheckService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/operators/dkg_health_check", 
+                on_service(MethodFilter::POST, OperatorsV4ControllerGetDkgHealthCheckService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 
@@ -3819,7 +4189,10 @@ impl<S> OperatorsRouter<S> where S: Clone + Send + Sync + 'static {
             H: OperatorsV4ControllerGetByPublicKeyHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/operators/public_key/:public_key", on_service(MethodFilter::GET, OperatorsV4ControllerGetByPublicKeyService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/operators/public_key/:public_key", 
+                on_service(MethodFilter::GET, OperatorsV4ControllerGetByPublicKeyService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 
@@ -3845,7 +4218,10 @@ impl<S> OperatorsRouter<S> where S: Clone + Send + Sync + 'static {
             H: OperatorsV4ControllerOperatorsHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/operators", on_service(MethodFilter::GET, OperatorsV4ControllerOperatorsService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/operators", 
+                on_service(MethodFilter::GET, OperatorsV4ControllerOperatorsService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 
@@ -3871,7 +4247,10 @@ impl<S> OperatorsRouter<S> where S: Clone + Send + Sync + 'static {
             H: OperatorsV4ControllerGetByIdsHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/operators", on_service(MethodFilter::POST, OperatorsV4ControllerGetByIdsService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/operators", 
+                on_service(MethodFilter::POST, OperatorsV4ControllerGetByIdsService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 
@@ -3897,7 +4276,10 @@ impl<S> OperatorsRouter<S> where S: Clone + Send + Sync + 'static {
             H: OperatorsV4ControllerUpdateMetadataHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/operators/:operator/metadata", on_service(MethodFilter::PUT, OperatorsV4ControllerUpdateMetadataService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/operators/:operator/metadata", 
+                on_service(MethodFilter::PUT, OperatorsV4ControllerUpdateMetadataService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 
@@ -3923,7 +4305,10 @@ impl<S> OperatorsRouter<S> where S: Clone + Send + Sync + 'static {
             H: OperatorsV4ControllerNodesHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/operators/nodes/:layer", on_service(MethodFilter::GET, OperatorsV4ControllerNodesService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/operators/nodes/:layer", 
+                on_service(MethodFilter::GET, OperatorsV4ControllerNodesService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 
@@ -3949,7 +4334,10 @@ impl<S> OperatorsRouter<S> where S: Clone + Send + Sync + 'static {
             H: OperatorsV4ControllerLocationsHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/operators/locations", on_service(MethodFilter::GET, OperatorsV4ControllerLocationsService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/operators/locations", 
+                on_service(MethodFilter::GET, OperatorsV4ControllerLocationsService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 }
@@ -4064,6 +4452,11 @@ macro_rules! operators_v4_controller_graph_handler {
 all_the_tuples!(operators_v4_controller_graph_handler);
 
 /// GET /api/v4/{network}/operators/graph service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "OperatorsV4ControllerGraphService",
+    description = "Service handler for GET /api/v4/{network}/operators/graph"
+)]
 struct OperatorsV4ControllerGraphService<H, T, S>
 where
     H: OperatorsV4ControllerGraphHandler<T, S> {
@@ -4094,6 +4487,15 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v4/{network}/operators/graph",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for OperatorsV4ControllerGraphService<H, T, S>
 where
     H: OperatorsV4ControllerGraphHandler<T, S>,
@@ -4220,6 +4622,11 @@ macro_rules! operators_v4_controller_owned_by_handler {
 all_the_tuples!(operators_v4_controller_owned_by_handler);
 
 /// GET /api/v4/{network}/operators/owned_by/{ownerAddress} service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "OperatorsV4ControllerOwnedByService",
+    description = "Service handler for GET /api/v4/{network}/operators/owned_by/{ownerAddress}"
+)]
 struct OperatorsV4ControllerOwnedByService<H, T, S>
 where
     H: OperatorsV4ControllerOwnedByHandler<T, S> {
@@ -4250,6 +4657,15 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v4/{network}/operators/owned_by/{ownerAddress}",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for OperatorsV4ControllerOwnedByService<H, T, S>
 where
     H: OperatorsV4ControllerOwnedByHandler<T, S>,
@@ -4376,6 +4792,11 @@ macro_rules! operators_v4_controller_incentivized_handler {
 all_the_tuples!(operators_v4_controller_incentivized_handler);
 
 /// GET /api/v4/{network}/operators/incentivized/{operator} service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "OperatorsV4ControllerIncentivizedService",
+    description = "Service handler for GET /api/v4/{network}/operators/incentivized/{operator}"
+)]
 struct OperatorsV4ControllerIncentivizedService<H, T, S>
 where
     H: OperatorsV4ControllerIncentivizedHandler<T, S> {
@@ -4406,6 +4827,15 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v4/{network}/operators/incentivized/{operator}",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for OperatorsV4ControllerIncentivizedService<H, T, S>
 where
     H: OperatorsV4ControllerIncentivizedHandler<T, S>,
@@ -4524,6 +4954,11 @@ macro_rules! operators_v4_controller_get_operator_handler {
 all_the_tuples!(operators_v4_controller_get_operator_handler);
 
 /// GET /api/v4/{network}/operators/{operator} service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "OperatorsV4ControllerGetOperatorService",
+    description = "Service handler for GET /api/v4/{network}/operators/{operator}"
+)]
 struct OperatorsV4ControllerGetOperatorService<H, T, S>
 where
     H: OperatorsV4ControllerGetOperatorHandler<T, S> {
@@ -4554,6 +4989,15 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v4/{network}/operators/{operator}",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for OperatorsV4ControllerGetOperatorService<H, T, S>
 where
     H: OperatorsV4ControllerGetOperatorHandler<T, S>,
@@ -4682,6 +5126,11 @@ macro_rules! operators_v4_controller_get_dkg_health_check_handler {
 all_the_tuples!(operators_v4_controller_get_dkg_health_check_handler);
 
 /// POST /api/v4/{network}/operators/dkg_health_check service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "OperatorsV4ControllerGetDkgHealthCheckService",
+    description = "Service handler for POST /api/v4/{network}/operators/dkg_health_check"
+)]
 struct OperatorsV4ControllerGetDkgHealthCheckService<H, T, S>
 where
     H: OperatorsV4ControllerGetDkgHealthCheckHandler<T, S> {
@@ -4712,6 +5161,15 @@ where
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/v4/{network}/operators/dkg_health_check",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for OperatorsV4ControllerGetDkgHealthCheckService<H, T, S>
 where
     H: OperatorsV4ControllerGetDkgHealthCheckHandler<T, S>,
@@ -4830,6 +5288,11 @@ macro_rules! operators_v4_controller_get_by_public_key_handler {
 all_the_tuples!(operators_v4_controller_get_by_public_key_handler);
 
 /// GET /api/v4/{network}/operators/public_key/{public_key} service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "OperatorsV4ControllerGetByPublicKeyService",
+    description = "Service handler for GET /api/v4/{network}/operators/public_key/{public_key}"
+)]
 struct OperatorsV4ControllerGetByPublicKeyService<H, T, S>
 where
     H: OperatorsV4ControllerGetByPublicKeyHandler<T, S> {
@@ -4860,6 +5323,15 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v4/{network}/operators/public_key/{public_key}",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for OperatorsV4ControllerGetByPublicKeyService<H, T, S>
 where
     H: OperatorsV4ControllerGetByPublicKeyHandler<T, S>,
@@ -4986,6 +5458,11 @@ macro_rules! operators_v4_controller_operators_handler {
 all_the_tuples!(operators_v4_controller_operators_handler);
 
 /// GET /api/v4/{network}/operators service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "OperatorsV4ControllerOperatorsService",
+    description = "Service handler for GET /api/v4/{network}/operators"
+)]
 struct OperatorsV4ControllerOperatorsService<H, T, S>
 where
     H: OperatorsV4ControllerOperatorsHandler<T, S> {
@@ -5016,6 +5493,15 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v4/{network}/operators",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for OperatorsV4ControllerOperatorsService<H, T, S>
 where
     H: OperatorsV4ControllerOperatorsHandler<T, S>,
@@ -5144,6 +5630,11 @@ macro_rules! operators_v4_controller_get_by_ids_handler {
 all_the_tuples!(operators_v4_controller_get_by_ids_handler);
 
 /// POST /api/v4/{network}/operators service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "OperatorsV4ControllerGetByIdsService",
+    description = "Service handler for POST /api/v4/{network}/operators"
+)]
 struct OperatorsV4ControllerGetByIdsService<H, T, S>
 where
     H: OperatorsV4ControllerGetByIdsHandler<T, S> {
@@ -5174,6 +5665,15 @@ where
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/v4/{network}/operators",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for OperatorsV4ControllerGetByIdsService<H, T, S>
 where
     H: OperatorsV4ControllerGetByIdsHandler<T, S>,
@@ -5302,6 +5802,11 @@ macro_rules! operators_v4_controller_update_metadata_handler {
 all_the_tuples!(operators_v4_controller_update_metadata_handler);
 
 /// PUT /api/v4/{network}/operators/{operator}/metadata service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "OperatorsV4ControllerUpdateMetadataService",
+    description = "Service handler for PUT /api/v4/{network}/operators/{operator}/metadata"
+)]
 struct OperatorsV4ControllerUpdateMetadataService<H, T, S>
 where
     H: OperatorsV4ControllerUpdateMetadataHandler<T, S> {
@@ -5332,6 +5837,15 @@ where
     }
 }
 
+#[utoipa::path(
+    put,
+    path = "/api/v4/{network}/operators/{operator}/metadata",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for OperatorsV4ControllerUpdateMetadataService<H, T, S>
 where
     H: OperatorsV4ControllerUpdateMetadataHandler<T, S>,
@@ -5450,6 +5964,11 @@ macro_rules! operators_v4_controller_nodes_handler {
 all_the_tuples!(operators_v4_controller_nodes_handler);
 
 /// GET /api/v4/{network}/operators/nodes/{layer} service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "OperatorsV4ControllerNodesService",
+    description = "Service handler for GET /api/v4/{network}/operators/nodes/{layer}"
+)]
 struct OperatorsV4ControllerNodesService<H, T, S>
 where
     H: OperatorsV4ControllerNodesHandler<T, S> {
@@ -5480,6 +5999,15 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v4/{network}/operators/nodes/{layer}",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for OperatorsV4ControllerNodesService<H, T, S>
 where
     H: OperatorsV4ControllerNodesHandler<T, S>,
@@ -5598,6 +6126,11 @@ macro_rules! operators_v4_controller_locations_handler {
 all_the_tuples!(operators_v4_controller_locations_handler);
 
 /// GET /api/v4/{network}/operators/locations service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "OperatorsV4ControllerLocationsService",
+    description = "Service handler for GET /api/v4/{network}/operators/locations"
+)]
 struct OperatorsV4ControllerLocationsService<H, T, S>
 where
     H: OperatorsV4ControllerLocationsHandler<T, S> {
@@ -5628,6 +6161,15 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v4/{network}/operators/locations",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for OperatorsV4ControllerLocationsService<H, T, S>
 where
     H: OperatorsV4ControllerLocationsHandler<T, S>,
@@ -5664,8 +6206,11 @@ pub struct SearchRouter<S = ()> {
 
 impl<S> SearchRouter<S> where S: Clone + Send + Sync + 'static {
     pub fn new() -> Self {
+        let router = Router::new()
+            .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", OpenApi::openapi()));
+
         Self {
-            router: Router::new()
+            router
         }
     }
 
@@ -5691,7 +6236,10 @@ impl<S> SearchRouter<S> where S: Clone + Send + Sync + 'static {
             H: SearchV4ControllerSearchHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/search", on_service(MethodFilter::GET, SearchV4ControllerSearchService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/search", 
+                on_service(MethodFilter::GET, SearchV4ControllerSearchService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 }
@@ -5806,6 +6354,11 @@ macro_rules! search_v4_controller_search_handler {
 all_the_tuples!(search_v4_controller_search_handler);
 
 /// GET /api/v4/{network}/search service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "SearchV4ControllerSearchService",
+    description = "Service handler for GET /api/v4/{network}/search"
+)]
 struct SearchV4ControllerSearchService<H, T, S>
 where
     H: SearchV4ControllerSearchHandler<T, S> {
@@ -5836,6 +6389,15 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v4/{network}/search",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for SearchV4ControllerSearchService<H, T, S>
 where
     H: SearchV4ControllerSearchHandler<T, S>,
@@ -5872,8 +6434,11 @@ pub struct ValidatorsRouter<S = ()> {
 
 impl<S> ValidatorsRouter<S> where S: Clone + Send + Sync + 'static {
     pub fn new() -> Self {
+        let router = Router::new()
+            .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", OpenApi::openapi()));
+
         Self {
-            router: Router::new()
+            router
         }
     }
 
@@ -5899,7 +6464,10 @@ impl<S> ValidatorsRouter<S> where S: Clone + Send + Sync + 'static {
             H: ApiV4ValidatorsCountActiveValidatorsListHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/validators/countActiveValidators", on_service(MethodFilter::GET, ApiV4ValidatorsCountActiveValidatorsListService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/validators/countActiveValidators", 
+                on_service(MethodFilter::GET, ApiV4ValidatorsCountActiveValidatorsListService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 
@@ -5925,7 +6493,10 @@ impl<S> ValidatorsRouter<S> where S: Clone + Send + Sync + 'static {
             H: ValidatorsV4ControllerCostHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/validators/owned_by/:ownerAddress/cost", on_service(MethodFilter::GET, ValidatorsV4ControllerCostService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/validators/owned_by/:ownerAddress/cost", 
+                on_service(MethodFilter::GET, ValidatorsV4ControllerCostService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 
@@ -5951,7 +6522,10 @@ impl<S> ValidatorsRouter<S> where S: Clone + Send + Sync + 'static {
             H: ValidatorsV4ControllerInOperatorHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/validators/in_operator/:operator", on_service(MethodFilter::GET, ValidatorsV4ControllerInOperatorService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/validators/in_operator/:operator", 
+                on_service(MethodFilter::GET, ValidatorsV4ControllerInOperatorService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 
@@ -5977,7 +6551,10 @@ impl<S> ValidatorsRouter<S> where S: Clone + Send + Sync + 'static {
             H: ValidatorsV4ControllerIncentivizedHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/validators/incentivized/:validator", on_service(MethodFilter::GET, ValidatorsV4ControllerIncentivizedService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/validators/incentivized/:validator", 
+                on_service(MethodFilter::GET, ValidatorsV4ControllerIncentivizedService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 
@@ -6003,7 +6580,10 @@ impl<S> ValidatorsRouter<S> where S: Clone + Send + Sync + 'static {
             H: ValidatorsV4ControllerValidatorHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/validators/:validator", on_service(MethodFilter::GET, ValidatorsV4ControllerValidatorService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/validators/:validator", 
+                on_service(MethodFilter::GET, ValidatorsV4ControllerValidatorService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 
@@ -6029,7 +6609,10 @@ impl<S> ValidatorsRouter<S> where S: Clone + Send + Sync + 'static {
             H: GetIsRegisteredValidatorHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/validators/isRegisteredValidator/:validator", on_service(MethodFilter::GET, GetIsRegisteredValidatorService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/validators/isRegisteredValidator/:validator", 
+                on_service(MethodFilter::GET, GetIsRegisteredValidatorService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 
@@ -6055,7 +6638,10 @@ impl<S> ValidatorsRouter<S> where S: Clone + Send + Sync + 'static {
             H: ApiV4ValidatorRegisteredByPublicKeyCreateHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/validators/registeredByPublicKeys", on_service(MethodFilter::POST, ApiV4ValidatorRegisteredByPublicKeyCreateService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/validators/registeredByPublicKeys", 
+                on_service(MethodFilter::POST, ApiV4ValidatorRegisteredByPublicKeyCreateService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 
@@ -6081,7 +6667,10 @@ impl<S> ValidatorsRouter<S> where S: Clone + Send + Sync + 'static {
             H: ValidatorsV4ControllerValidatorsHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/validators", on_service(MethodFilter::GET, ValidatorsV4ControllerValidatorsService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/validators", 
+                on_service(MethodFilter::GET, ValidatorsV4ControllerValidatorsService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 
@@ -6107,7 +6696,10 @@ impl<S> ValidatorsRouter<S> where S: Clone + Send + Sync + 'static {
             H: ValidatorsV4ControllerDutyCountsHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/validators/duty_counts/:from_epoch/:to_epoch", on_service(MethodFilter::GET, ValidatorsV4ControllerDutyCountsService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/validators/duty_counts/:from_epoch/:to_epoch", 
+                on_service(MethodFilter::GET, ValidatorsV4ControllerDutyCountsService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 
@@ -6133,7 +6725,10 @@ impl<S> ValidatorsRouter<S> where S: Clone + Send + Sync + 'static {
             H: ApiV4ValidatorsValidatorsByClusterHashGetHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/validators/validatorsByClusterHash/:clusterHash", on_service(MethodFilter::GET, ApiV4ValidatorsValidatorsByClusterHashGetService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/validators/validatorsByClusterHash/:clusterHash", 
+                on_service(MethodFilter::GET, ApiV4ValidatorsValidatorsByClusterHashGetService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 
@@ -6159,7 +6754,10 @@ impl<S> ValidatorsRouter<S> where S: Clone + Send + Sync + 'static {
             H: ApiV4ValidatorValidatorsWithdrawCredentialCreateHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/validators/validatorsWithdrawCredentials", on_service(MethodFilter::POST, ApiV4ValidatorValidatorsWithdrawCredentialCreateService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/validators/validatorsWithdrawCredentials", 
+                on_service(MethodFilter::POST, ApiV4ValidatorValidatorsWithdrawCredentialCreateService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 }
@@ -6266,6 +6864,11 @@ macro_rules! api_v4_validators_count_active_validators_list_handler {
 all_the_tuples!(api_v4_validators_count_active_validators_list_handler);
 
 /// GET /api/v4/{network}/validators/countActiveValidators service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "ApiV4ValidatorsCountActiveValidatorsListService",
+    description = "Service handler for GET /api/v4/{network}/validators/countActiveValidators"
+)]
 struct ApiV4ValidatorsCountActiveValidatorsListService<H, T, S>
 where
     H: ApiV4ValidatorsCountActiveValidatorsListHandler<T, S> {
@@ -6296,6 +6899,15 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v4/{network}/validators/countActiveValidators",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for ApiV4ValidatorsCountActiveValidatorsListService<H, T, S>
 where
     H: ApiV4ValidatorsCountActiveValidatorsListHandler<T, S>,
@@ -6414,6 +7026,11 @@ macro_rules! validators_v4_controller_cost_handler {
 all_the_tuples!(validators_v4_controller_cost_handler);
 
 /// GET /api/v4/{network}/validators/owned_by/{ownerAddress}/cost service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "ValidatorsV4ControllerCostService",
+    description = "Service handler for GET /api/v4/{network}/validators/owned_by/{ownerAddress}/cost"
+)]
 struct ValidatorsV4ControllerCostService<H, T, S>
 where
     H: ValidatorsV4ControllerCostHandler<T, S> {
@@ -6444,6 +7061,15 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v4/{network}/validators/owned_by/{ownerAddress}/cost",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for ValidatorsV4ControllerCostService<H, T, S>
 where
     H: ValidatorsV4ControllerCostHandler<T, S>,
@@ -6570,6 +7196,11 @@ macro_rules! validators_v4_controller_in_operator_handler {
 all_the_tuples!(validators_v4_controller_in_operator_handler);
 
 /// GET /api/v4/{network}/validators/in_operator/{operator} service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "ValidatorsV4ControllerInOperatorService",
+    description = "Service handler for GET /api/v4/{network}/validators/in_operator/{operator}"
+)]
 struct ValidatorsV4ControllerInOperatorService<H, T, S>
 where
     H: ValidatorsV4ControllerInOperatorHandler<T, S> {
@@ -6600,6 +7231,15 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v4/{network}/validators/in_operator/{operator}",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for ValidatorsV4ControllerInOperatorService<H, T, S>
 where
     H: ValidatorsV4ControllerInOperatorHandler<T, S>,
@@ -6726,6 +7366,11 @@ macro_rules! validators_v4_controller_incentivized_handler {
 all_the_tuples!(validators_v4_controller_incentivized_handler);
 
 /// GET /api/v4/{network}/validators/incentivized/{validator} service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "ValidatorsV4ControllerIncentivizedService",
+    description = "Service handler for GET /api/v4/{network}/validators/incentivized/{validator}"
+)]
 struct ValidatorsV4ControllerIncentivizedService<H, T, S>
 where
     H: ValidatorsV4ControllerIncentivizedHandler<T, S> {
@@ -6756,6 +7401,15 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v4/{network}/validators/incentivized/{validator}",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for ValidatorsV4ControllerIncentivizedService<H, T, S>
 where
     H: ValidatorsV4ControllerIncentivizedHandler<T, S>,
@@ -6874,6 +7528,11 @@ macro_rules! validators_v4_controller_validator_handler {
 all_the_tuples!(validators_v4_controller_validator_handler);
 
 /// GET /api/v4/{network}/validators/{validator} service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "ValidatorsV4ControllerValidatorService",
+    description = "Service handler for GET /api/v4/{network}/validators/{validator}"
+)]
 struct ValidatorsV4ControllerValidatorService<H, T, S>
 where
     H: ValidatorsV4ControllerValidatorHandler<T, S> {
@@ -6904,6 +7563,15 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v4/{network}/validators/{validator}",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for ValidatorsV4ControllerValidatorService<H, T, S>
 where
     H: ValidatorsV4ControllerValidatorHandler<T, S>,
@@ -7022,6 +7690,11 @@ macro_rules! get_is_registered_validator_handler {
 all_the_tuples!(get_is_registered_validator_handler);
 
 /// GET /api/v4/{network}/validators/isRegisteredValidator/{validator} service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "GetIsRegisteredValidatorService",
+    description = "Service handler for GET /api/v4/{network}/validators/isRegisteredValidator/{validator}"
+)]
 struct GetIsRegisteredValidatorService<H, T, S>
 where
     H: GetIsRegisteredValidatorHandler<T, S> {
@@ -7052,6 +7725,15 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v4/{network}/validators/isRegisteredValidator/{validator}",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for GetIsRegisteredValidatorService<H, T, S>
 where
     H: GetIsRegisteredValidatorHandler<T, S>,
@@ -7180,6 +7862,11 @@ macro_rules! api_v4_validator_registered_by_public_key_create_handler {
 all_the_tuples!(api_v4_validator_registered_by_public_key_create_handler);
 
 /// POST /api/v4/{network}/validators/registeredByPublicKeys service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "ApiV4ValidatorRegisteredByPublicKeyCreateService",
+    description = "Service handler for POST /api/v4/{network}/validators/registeredByPublicKeys"
+)]
 struct ApiV4ValidatorRegisteredByPublicKeyCreateService<H, T, S>
 where
     H: ApiV4ValidatorRegisteredByPublicKeyCreateHandler<T, S> {
@@ -7210,6 +7897,15 @@ where
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/v4/{network}/validators/registeredByPublicKeys",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for ApiV4ValidatorRegisteredByPublicKeyCreateService<H, T, S>
 where
     H: ApiV4ValidatorRegisteredByPublicKeyCreateHandler<T, S>,
@@ -7336,6 +8032,11 @@ macro_rules! validators_v4_controller_validators_handler {
 all_the_tuples!(validators_v4_controller_validators_handler);
 
 /// GET /api/v4/{network}/validators service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "ValidatorsV4ControllerValidatorsService",
+    description = "Service handler for GET /api/v4/{network}/validators"
+)]
 struct ValidatorsV4ControllerValidatorsService<H, T, S>
 where
     H: ValidatorsV4ControllerValidatorsHandler<T, S> {
@@ -7366,6 +8067,15 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v4/{network}/validators",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for ValidatorsV4ControllerValidatorsService<H, T, S>
 where
     H: ValidatorsV4ControllerValidatorsHandler<T, S>,
@@ -7484,6 +8194,11 @@ macro_rules! validators_v4_controller_duty_counts_handler {
 all_the_tuples!(validators_v4_controller_duty_counts_handler);
 
 /// GET /api/v4/{network}/validators/duty_counts/{from_epoch}/{to_epoch} service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "ValidatorsV4ControllerDutyCountsService",
+    description = "Service handler for GET /api/v4/{network}/validators/duty_counts/{from_epoch}/{to_epoch}"
+)]
 struct ValidatorsV4ControllerDutyCountsService<H, T, S>
 where
     H: ValidatorsV4ControllerDutyCountsHandler<T, S> {
@@ -7514,6 +8229,15 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v4/{network}/validators/duty_counts/{from_epoch}/{to_epoch}",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for ValidatorsV4ControllerDutyCountsService<H, T, S>
 where
     H: ValidatorsV4ControllerDutyCountsHandler<T, S>,
@@ -7632,6 +8356,11 @@ macro_rules! api_v4_validators_validators_by_cluster_hash_get_handler {
 all_the_tuples!(api_v4_validators_validators_by_cluster_hash_get_handler);
 
 /// GET /api/v4/{network}/validators/validatorsByClusterHash/{clusterHash} service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "ApiV4ValidatorsValidatorsByClusterHashGetService",
+    description = "Service handler for GET /api/v4/{network}/validators/validatorsByClusterHash/{clusterHash}"
+)]
 struct ApiV4ValidatorsValidatorsByClusterHashGetService<H, T, S>
 where
     H: ApiV4ValidatorsValidatorsByClusterHashGetHandler<T, S> {
@@ -7662,6 +8391,15 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v4/{network}/validators/validatorsByClusterHash/{clusterHash}",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for ApiV4ValidatorsValidatorsByClusterHashGetService<H, T, S>
 where
     H: ApiV4ValidatorsValidatorsByClusterHashGetHandler<T, S>,
@@ -7790,6 +8528,11 @@ macro_rules! api_v4_validator_validators_withdraw_credential_create_handler {
 all_the_tuples!(api_v4_validator_validators_withdraw_credential_create_handler);
 
 /// POST /api/v4/{network}/validators/validatorsWithdrawCredentials service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "ApiV4ValidatorValidatorsWithdrawCredentialCreateService",
+    description = "Service handler for POST /api/v4/{network}/validators/validatorsWithdrawCredentials"
+)]
 struct ApiV4ValidatorValidatorsWithdrawCredentialCreateService<H, T, S>
 where
     H: ApiV4ValidatorValidatorsWithdrawCredentialCreateHandler<T, S> {
@@ -7820,6 +8563,15 @@ where
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/v4/{network}/validators/validatorsWithdrawCredentials",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for ApiV4ValidatorValidatorsWithdrawCredentialCreateService<H, T, S>
 where
     H: ApiV4ValidatorValidatorsWithdrawCredentialCreateHandler<T, S>,
@@ -7856,8 +8608,11 @@ pub struct V4Router<S = ()> {
 
 impl<S> V4Router<S> where S: Clone + Send + Sync + 'static {
     pub fn new() -> Self {
+        let router = Router::new()
+            .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", OpenApi::openapi()));
+
         Self {
-            router: Router::new()
+            router
         }
     }
 
@@ -7883,7 +8638,10 @@ impl<S> V4Router<S> where S: Clone + Send + Sync + 'static {
             H: AccountV4ControllerListHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/accounts", on_service(MethodFilter::GET, AccountV4ControllerListService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/accounts", 
+                on_service(MethodFilter::GET, AccountV4ControllerListService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 
@@ -7909,7 +8667,10 @@ impl<S> V4Router<S> where S: Clone + Send + Sync + 'static {
             H: AccountV4ControllerByIdHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/accounts/:ownerAddress", on_service(MethodFilter::GET, AccountV4ControllerByIdService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/accounts/:ownerAddress", 
+                on_service(MethodFilter::GET, AccountV4ControllerByIdService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 
@@ -7935,7 +8696,10 @@ impl<S> V4Router<S> where S: Clone + Send + Sync + 'static {
             H: DutiesV4ControllerDutiesHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/duties/:validator", on_service(MethodFilter::GET, DutiesV4ControllerDutiesService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/duties/:validator", 
+                on_service(MethodFilter::GET, DutiesV4ControllerDutiesService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 
@@ -7961,7 +8725,10 @@ impl<S> V4Router<S> where S: Clone + Send + Sync + 'static {
             H: HealthV4ControllerHealthHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/health", on_service(MethodFilter::GET, HealthV4ControllerHealthService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/health", 
+                on_service(MethodFilter::GET, HealthV4ControllerHealthService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 
@@ -7987,7 +8754,10 @@ impl<S> V4Router<S> where S: Clone + Send + Sync + 'static {
             H: IncentivizationV4ControllerMigrationOperatorsDistributionHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/incentivization/merkle-tree", on_service(MethodFilter::GET, IncentivizationV4ControllerMigrationOperatorsDistributionService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/incentivization/merkle-tree", 
+                on_service(MethodFilter::GET, IncentivizationV4ControllerMigrationOperatorsDistributionService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 
@@ -8013,7 +8783,10 @@ impl<S> V4Router<S> where S: Clone + Send + Sync + 'static {
             H: SearchV4ControllerSearchHandler<T, S>,
             T: 'static
     {
-        self.router = self.router.route("/api/v4/:network/search", on_service(MethodFilter::GET, SearchV4ControllerSearchService::new(handler)));
+        self.router = self.router
+            .route("/api/v4/:network/search", 
+                on_service(MethodFilter::GET, SearchV4ControllerSearchService::new(handler)))
+            .layer(tower_http::trace::TraceLayer::new_for_http());
         self
     }
 }
@@ -8128,6 +8901,11 @@ macro_rules! account_v4_controller_list_handler {
 all_the_tuples!(account_v4_controller_list_handler);
 
 /// GET /api/v4/{network}/accounts service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "AccountV4ControllerListService",
+    description = "Service handler for GET /api/v4/{network}/accounts"
+)]
 struct AccountV4ControllerListService<H, T, S>
 where
     H: AccountV4ControllerListHandler<T, S> {
@@ -8158,6 +8936,15 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v4/{network}/accounts",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for AccountV4ControllerListService<H, T, S>
 where
     H: AccountV4ControllerListHandler<T, S>,
@@ -8276,6 +9063,11 @@ macro_rules! account_v4_controller_by_id_handler {
 all_the_tuples!(account_v4_controller_by_id_handler);
 
 /// GET /api/v4/{network}/accounts/{ownerAddress} service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "AccountV4ControllerByIdService",
+    description = "Service handler for GET /api/v4/{network}/accounts/{ownerAddress}"
+)]
 struct AccountV4ControllerByIdService<H, T, S>
 where
     H: AccountV4ControllerByIdHandler<T, S> {
@@ -8306,6 +9098,15 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v4/{network}/accounts/{ownerAddress}",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for AccountV4ControllerByIdService<H, T, S>
 where
     H: AccountV4ControllerByIdHandler<T, S>,
@@ -8432,6 +9233,11 @@ macro_rules! duties_v4_controller_duties_handler {
 all_the_tuples!(duties_v4_controller_duties_handler);
 
 /// GET /api/v4/{network}/duties/{validator} service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "DutiesV4ControllerDutiesService",
+    description = "Service handler for GET /api/v4/{network}/duties/{validator}"
+)]
 struct DutiesV4ControllerDutiesService<H, T, S>
 where
     H: DutiesV4ControllerDutiesHandler<T, S> {
@@ -8462,6 +9268,15 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v4/{network}/duties/{validator}",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for DutiesV4ControllerDutiesService<H, T, S>
 where
     H: DutiesV4ControllerDutiesHandler<T, S>,
@@ -8580,6 +9395,11 @@ macro_rules! health_v4_controller_health_handler {
 all_the_tuples!(health_v4_controller_health_handler);
 
 /// GET /api/v4/{network}/health service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "HealthV4ControllerHealthService",
+    description = "Service handler for GET /api/v4/{network}/health"
+)]
 struct HealthV4ControllerHealthService<H, T, S>
 where
     H: HealthV4ControllerHealthHandler<T, S> {
@@ -8610,6 +9430,15 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v4/{network}/health",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for HealthV4ControllerHealthService<H, T, S>
 where
     H: HealthV4ControllerHealthHandler<T, S>,
@@ -8728,6 +9557,11 @@ macro_rules! incentivization_v4_controller_migration_operators_distribution_hand
 all_the_tuples!(incentivization_v4_controller_migration_operators_distribution_handler);
 
 /// GET /api/v4/{network}/incentivization/merkle-tree service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "IncentivizationV4ControllerMigrationOperatorsDistributionService",
+    description = "Service handler for GET /api/v4/{network}/incentivization/merkle-tree"
+)]
 struct IncentivizationV4ControllerMigrationOperatorsDistributionService<H, T, S>
 where
     H: IncentivizationV4ControllerMigrationOperatorsDistributionHandler<T, S> {
@@ -8758,6 +9592,15 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v4/{network}/incentivization/merkle-tree",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for IncentivizationV4ControllerMigrationOperatorsDistributionService<H, T, S>
 where
     H: IncentivizationV4ControllerMigrationOperatorsDistributionHandler<T, S>,
@@ -8884,6 +9727,11 @@ macro_rules! search_v4_controller_search_handler {
 all_the_tuples!(search_v4_controller_search_handler);
 
 /// GET /api/v4/{network}/search service
+#[derive(utoipa::ToSchema)]
+#[schema(
+    title = "SearchV4ControllerSearchService",
+    description = "Service handler for GET /api/v4/{network}/search"
+)]
 struct SearchV4ControllerSearchService<H, T, S>
 where
     H: SearchV4ControllerSearchHandler<T, S> {
@@ -8914,6 +9762,15 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v4/{network}/search",
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 impl<H, T, S> Service<ERequest> for SearchV4ControllerSearchService<H, T, S>
 where
     H: SearchV4ControllerSearchHandler<T, S>,

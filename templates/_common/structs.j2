@@ -1,0 +1,46 @@
+#[derive(Debug)]
+pub struct ApiKey(pub String);
+
+#[derive(Debug)]
+pub struct FailedToDeserializeQuery(pub Error);
+
+impl fmt::Display for FailedToDeserializeQuery {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Failed to deserialize query string: {}", self.0)
+    }
+}
+
+impl std::error::Error for FailedToDeserializeQuery {}
+
+#[derive(Debug)]
+pub struct FailedToDeserializePath(pub String);
+
+impl fmt::Display for FailedToDeserializePath {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Failed to deserialize path parameter: {}", self.0)
+    }
+}
+
+impl std::error::Error for FailedToDeserializePath {}
+
+#[derive(Debug)]
+pub struct FailedToDeserializeHeader(pub String);
+
+impl fmt::Display for FailedToDeserializeHeader {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Failed to deserialize header: {}", self.0)
+    }
+}
+
+impl std::error::Error for FailedToDeserializeHeader {}
+
+#[derive(Debug)]
+pub struct FailedToDeserializeBody(pub String);
+
+impl fmt::Display for FailedToDeserializeBody {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Failed to deserialize body: {}", self.0)
+    }
+}
+
+impl std::error::Error for FailedToDeserializeBody {}

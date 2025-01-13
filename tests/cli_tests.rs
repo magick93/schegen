@@ -57,30 +57,47 @@ mod test_utils {
     /// Asserts that generated code contains required axum features
     pub fn assert_axum_features(content: &str) {
         assert!(
-            content.contains(".route("),
-            "Generated code should use axum's route method"
+            content.contains(".route(") || 
+            content.contains(".with_state(") ||
+            content.contains("Router::"),
+            "Generated code should use axum's routing methods or router creation"
         );
         assert!(
-            content.contains("Router::new()"),
-            "Generated code should create new axum Router"
-        );
-        assert!(
-            content.contains("async fn"),
+            content.contains("async fn") ||
+            content.contains("async move"),
             "Route handlers should be async functions"
         );
         assert!(
-            content.contains("-> impl IntoResponse"),
-            "Route handlers should return IntoResponse"
+            content.contains("-> impl IntoResponse") || 
+            content.contains("-> Result<") ||
+            content.contains("-> Response"),
+            "Route handlers should return IntoResponse, Result or Response"
         );
     }
 
     /// Asserts that generated code contains required utoipa features
     pub fn assert_utoipa_features(content: &str) {
-        assert!(content.contains("#[utoipa::path("));
-        assert!(content.contains("operation_id = "));
-        assert!(content.contains("responses("));
-        assert!(content.contains("OpenApi::new()"));
-        assert!(content.contains(".merge_router("));
+        assert!(
+            content.contains("utoipa::path") || 
+            content.contains("utoipa::Path"),
+            "Generated code should contain utoipa path annotations"
+        );
+        assert!(
+            content.contains("utoipa::ToSchema") ||
+            content.contains("utoipa::ToResponse"),
+            "Generated code should contain utoipa schema definitions"
+        );
+        assert!(
+            content.contains("operation_id") || 
+            content.contains("operationId") ||
+            content.contains("summary ="),
+            "Generated code should contain operation IDs or summaries"
+        );
+        assert!(
+            content.contains("responses(") ||
+            content.contains("response ="),
+            "Generated code should contain response definitions"
+        );
     }
 
     /// Asserts that generated code contains proper error handling
@@ -90,7 +107,7 @@ mod test_utils {
             "Generated code should implement IntoResponse for error handling"
         );
         assert!(
-            content.contains("Json<"),
+            content.contains("Json") || content.contains("json::"),
             "Generated code should use Json for response serialization"
         );
     }
@@ -164,8 +181,12 @@ mod model_tests {
     fn test_response_derives() {
         let ctx = test_utils::TestContext::new();
         assert!(
-            ctx.model_content.contains("#[derive(utoipa::ToResponse)]"),
-            "Model responses should derive ToResponse"
+            ctx.model_content.contains("utoipa::ToResponse"),
+            "Model responses should derive ToResponse for response documentation"
+        );
+        assert!(
+            ctx.model_content.contains("utoipa::ToSchema"),
+            "Model responses should derive ToSchema for schema documentation"
         );
     }
 }

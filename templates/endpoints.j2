@@ -1,319 +1,410 @@
 {# type=tags,filename=api/endpoint.rs,min_version=0.5.0 #}
-{%- import "macros.j2" as m -%}
-{%- import "extra.j2" as e -%}
-{{ m::do_not_modify() }}
-use async_trait::async_trait;
-use axum::{body::Body, http::{HeaderValue, Response, StatusCode}, response::IntoResponse, Json, http};
-use garde::Validate;
-use serde::{
-    de::{self, IntoDeserializer},
-    Deserialize,
+use axum::{
+    response::IntoResponse,
+    Json,
+    http::StatusCode,
+    routing::{get, post, put, delete},
+    Router,
+    extract::{Path, Query, Json as ExtractJson, State, FromRequestParts},
+    headers::{authorization::Bearer, Authorization},
+    TypedHeader,
 };
-use serde_qs::Error;
-use std::fmt;
-use axum::extract::FromRequestParts;
-use axum::http::request::Parts;
+use axum_extra::extract::CookieJar;
+use utoipa::{ToSchema, ToResponse, OpenApi};
+use serde::{Serialize, Deserialize};
+use validator::Validate;
+use jsonwebtoken::{DecodingKey, EncodingKey, Validation, Header, Algorithm};
+use serde_json::json;
+use std::sync::Arc;
+use tokio::sync::RwLock;
+use tower_http::limit::RateLimitLayer;
+use std::time::Duration;
 
-{% set_global froms = [] %}
-{% set_global froms_with_headers = [] %}
+#[derive(Debug, Clone)]
+pub struct AppState {
+    pub jwt_secret: String,
+    pub api_keys: Arc<RwLock<Vec<String>>>,
+    pub rate_limit: u32,
+}
 
+#[derive(Debug, Serialize, Deserialize, ToSchema, ToResponse)]
+#[response(description = "Standard success response")]
+pub struct Claims {
+    pub sub: String,
+    pub exp: usize,
+    pub role: String,
+}
 
-#[derive(Debug)]
-pub struct FailedToDeserializeQuery(Error);
+#[derive(Debug, Serialize, Deserialize, ToSchema, ToResponse)]
+#[response(description = "Authentication response containing JWT token")]
+pub struct AuthResponse {
+    pub token: String,
+    pub token_type: String,
+    pub expires_in: usize,
+}
 
-impl IntoResponse for FailedToDeserializeQuery {
-    fn into_response(self) -> axum::response::Response {
-        (http::StatusCode::BAD_REQUEST, self.0.to_string()).into_response()
+#[derive(Debug, Serialize, Deserialize, ToSchema, ToResponse)]
+#[response(description = "API key generation response")]
+pub struct ApiKeyResponse {
+    pub key: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema, ToResponse)]
+#[response(description = "Rate limit status response")]
+pub struct RateLimitResponse {
+    pub remaining: u32,
+    pub reset: u64,
+}
+
+#[derive(Debug, ToSchema, Serialize, Deserialize, IntoResponse, ToResponse)]
+#[response(description = "Standard success response containing a message")]
+pub struct HelloWorldResponse {
+    /// The message returned by the API
+    message: String,
+}
+
+#[derive(Debug, ToSchema, Serialize, Deserialize, IntoResponse, ToResponse)]
+#[response(description = "Standard error response containing error details")]
+pub struct ErrorResponse {
+    /// Description of the error
+    error: String,
+}
+
+#[derive(Debug, ToSchema, Serialize, Deserialize, IntoResponse, ToResponse)]
+#[response(description = "Resource not found response with explanation")]
+pub struct NotFoundResponse {
+    /// Description of the not found error
+    message: String,
+}
+
+#[derive(Debug, ToSchema, Serialize, IntoResponse, ToResponse)]
+#[response(description = "Validation error response with list of validation issues")]
+pub struct ValidationErrorResponse {
+    /// List of validation errors
+    errors: Vec<String>,
+}
+
+#[derive(Debug, ToSchema, Serialize, IntoResponse, ToResponse)]
+#[response(description = "Standard success response with status and message")]
+pub struct SuccessResponse {
+    /// Indicates if the operation was successful
+    success: bool,
+    /// Additional success message
+    message: String,
+}
+
+#[derive(Debug, ToSchema, Serialize, IntoResponse, ToResponse)]
+#[response(description = "Single item response with item details")]
+pub struct ItemResponse {
+    /// Unique identifier of the item
+    id: i64,
+    /// Name of the item
+    name: String,
+    /// Creation timestamp of the item
+    created_at: String,
+}
+
+#[derive(Debug, ToSchema, Serialize, Deserialize, IntoResponse, ToResponse)]
+#[response(description = "Paginated list response with items and total count")]
+#[schema(example = json!({
+    "items": [{
+        "id": 1,
+        "name": "Example Item",
+        "created_at": "2024-01-01T00:00:00Z"
+    }],
+    "total": 1
+}))]
+pub struct ListResponse<T>
+where
+    T: ToResponse + ToSchema + Serialize,
+{
+    /// List of items
+    items: Vec<T>,
+    /// Total number of items available
+    total: i64,
+}
+
+#[derive(ToSchema, Deserialize, Validate)]
+pub struct LoginRequest {
+    #[validate(email)]
+    pub email: String,
+    #[validate(length(min = 8))]
+    pub password: String,
+}
+
+#[derive(ToSchema, Deserialize, Validate)]
+pub struct CreateRequest {
+    #[validate(length(min = 3))]
+    pub name: String,
+    #[validate(range(min = 1, max = 100))]
+    pub quantity: i32,
+}
+
+/// Returns a simple hello world message
+#[utoipa::path(
+    get,
+    path = "/",
+    responses(
+        (status = 200, description = "Returns a hello world message", body = HelloWorldResponse),
+        (status = 400, description = "Invalid request parameters", body = ValidationErrorResponse),
+        (status = 404, description = "Requested resource not found", body = NotFoundResponse),
+        (status = 500, description = "Internal server error occurred", body = ErrorResponse)
+    ),
+    operation_id = "get_hello_world",
+    tag = "example",
+    security(
+        ("api_key" = [])
+    )
+)]
+pub async fn hello_world() -> impl IntoResponse {
+    Json(HelloWorldResponse { message: "Hello World".to_string() })
+}
+
+/// Get an item by its ID
+#[utoipa::path(
+    get,
+    path = "/items/{id}",
+    responses(
+        (status = 200, description = "Returns the requested item", body = ItemResponse),
+        (status = 404, description = "Item with specified ID not found", body = NotFoundResponse),
+        (status = 500, description = "Internal server error occurred", body = ErrorResponse)
+    ),
+    operation_id = "get_item_by_id",
+    tag = "example"
+)]
+pub async fn get_item(Path(id): Path<i64>) -> impl IntoResponse {
+    Json(ItemResponse {
+        id,
+        name: "Example Item".to_string(),
+        created_at: "2024-01-01T00:00:00Z".to_string()
+    })
+}
+
+/// List all items
+#[utoipa::path(
+    get,
+    path = "/items",
+    responses(
+        (status = 200, description = "Returns paginated list of items", body = ListResponse<ItemResponse>),
+        (status = 500, description = "Internal server error occurred", body = ErrorResponse)
+    ),
+    operation_id = "list_all_items",
+    tag = "example"
+)]
+pub async fn list_items() -> impl IntoResponse {
+    Json(ListResponse {
+        items: vec![ItemResponse {
+            id: 1,
+            name: "Example Item".to_string(),
+            created_at: "2024-01-01T00:00:00Z".to_string()
+        }],
+        total: 1
+    })
+}
+
+/// Create a new item
+{# Default values for template variables #}
+{% set method = method | default(value="get") %}
+{% set path = path | default(value="/") %}
+{% set response_type = response_type | default(value="String") %}
+{% set parameters = parameters | default(value=[]) %}
+{% set request_body = request_body | default(value="()") %}
+
+#[utoipa::path(
+    {{ method | lower }},
+    path = "{{ path }}",
+    responses(
+        (status = 200, description = "Success", body = {{ response_type }}, content_type = "application/json"),
+        (status = 400, description = "Bad Request", body = ErrorResponse),
+        (status = 401, description = "Unauthorized", body = ErrorResponse),
+        (status = 403, description = "Forbidden", body = ErrorResponse),
+        (status = 404, description = "Not Found", body = ErrorResponse),
+        (status = 500, description = "Internal Server Error", body = ErrorResponse)
+    ),
+    params(
+        {% for param in parameters -%}
+        ("{{ param.name }}" = {{ param.schema | default(value="String") }}, description = "{{ param.description | default(value="") }}"),
+        {% endfor -%}
+    ),
+    request_body = {{ request_body }}
+)]
+pub async fn create_item(ExtractJson(payload): ExtractJson<CreateRequest>) -> Result<impl IntoResponse, Json<ValidationErrorResponse>> {
+    if let Err(errors) = payload.validate() {
+        let error_messages = errors.field_errors()
+            .into_iter()
+            .map(|(_, errors)| errors[0].message.clone().unwrap_or_default())
+            .collect();
+            
+        return Err(Json(ValidationErrorResponse { errors: error_messages }));
     }
+
+    Ok(Json(SuccessResponse { success: true, message: "Item created".to_string() }))
 }
 
-{% for tag in tags -%}
-{%- for endpoint in tag.endpoints -%}
-{% if endpoint.parameters.path | length > 0 -%}
-/// {{ endpoint.method | upper }} {{ endpoint.path }}
-/// path parameters
-#[derive({% if not options.skipValidate %}Validate, {% endif %}Deserialize)]
-pub struct {{ endpoint.operation | pascalcase }}Path{
-	{%- for param in endpoint.parameters.path %}
-    {{- m::model_validation(model = param.model, options = options, regex_path="super::model::") }}
-	#[serde(rename = "{{ param.name }}"{% if property.required %}, skip_serializing_if = "Option::is_none"{% endif %})]
-	pub {{ m::property_name(name = param.name) }}: {{ m::type(property = param.model) }},
-	{% endfor %}
-}
-{% endif -%}
-
-{%- if endpoint.parameters.query | length > 0 %}
-{% set object_query_params = endpoint.parameters.query | filter(attribute="model.type", value="object") | length == 0 %}
-{% set object_all_optional = endpoint.parameters.query | filter(attribute="required", value=true) | length == 0 %}
-
-/// {{ endpoint.method | upper }} {{ endpoint.path }}
-/// query parameters
-#[derive({% if not options.skipValidate %}Validate, {% endif %}Deserialize{% if object_all_optional %},Default{% endif %})]
-pub struct {{ endpoint.operation | pascalcase }}Query{
-	{%- for param in endpoint.parameters.query %}
-	{%- if param.style == 'form' and param.explode == false %}
-    {{ m::model_validation(model = param.model, options = options, is_required=param.required, regex_path="super::model::", style="form") }}
-	#[serde(rename = "{{ param.name }}", deserialize_with = "deserialized_{% if not param.required %}opt_{% endif %}id_list"{% if property.required %}, skip_serializing_if = "Option::is_none"{% endif %})]
-	pub {{ m::property_name(name = param.name) }}: {% if not param.required %}Option<{% endif %}Vec<{{ m::type(property = param.model, ns = "super::model") }}{% if not param.required %}>{% endif %}>,
-	{%- else %}
-    {{ m::model_validation(model = param.model, options = options, is_required=param.required, regex_path="super::model::") }}
-	#[serde(rename = "{{ param.name }}"{% if property.required %}, skip_serializing_if = "Option::is_none"{% endif %})]
-	pub {{ m::property_name(name = param.name) }}: {% if not param.required %}Option<{% endif %}{{ m::type(property = param.model, ns = "super::model") }}{% if not param.required %}>{% endif %},
-	{%- endif %}
-	{% endfor %}
-}
-
-{% endif -%}
-
-{% set skipped_headers = e::skipped_headers(endpoint=endpoint, options=options) | split(pat=" ") %}
-{% set filtered_headers = endpoint.parameters.header | filter_not_inarray(attribute="name", values=skipped_headers) %}
-{%- if filtered_headers | length > 0 %}
-/// {{ endpoint.method | upper }} {{ endpoint.path }}
-/// request headers
-#[derive({% if not options.skipValidate %}Validate, {% endif %}Deserialize)]
-pub struct {{ endpoint.operation | pascalcase }}RequestHeaders{
-	{%- for param in filtered_headers %}
-    {{- m::model_validation(model = param.model, options = options, is_required=param.required, regex_path="super::model::") }}
-	#[serde(rename = "{{ param.name }}"{% if property.required %}, skip_serializing_if = "Option::is_none"{% endif %})]
-	pub {{ m::property_name(name = param.name) }}: {% if not param.required %}Option<{% endif %}{{ m::type(property = param.model, ns = "super::model") }}{% if not param.required %}>{% endif %},
-	{% endfor %}
-}
-
-impl std::convert::TryFrom<&axum::http::HeaderMap> for {{ endpoint.operation | pascalcase }}RequestHeaders {
-    type Error = StatusCode;
-
-    fn try_from(value: &axum::http::HeaderMap) -> Result<Self, Self::Error> {
-        Ok(Self {
-            {% for param in filtered_headers %}
-            {{ m::property_name(name = param.name) }}: value.get("{{ param.name }}")
-                .map(|hv| hv.to_str())
-                .map_or(Ok(None), |v| v.map(Some))
-                .map_err(|_| StatusCode::BAD_REQUEST)?
-                .map(|s| s.to_string())
-                {% if param.required %}.ok_or(StatusCode::BAD_REQUEST)?{% endif %},
-            {% endfor %}
-        })
-    }
-}
-{% endif -%}
-
-{% for response in endpoint.responses.all %}
-{% set filtered_response_headers = response.headers | default(value=[]) | filter_not_inarray(attribute="name", values=skipped_headers) %}
-{% if filtered_response_headers | length > 0 %}
-/// {{ endpoint.method | upper }} {{ endpoint.path }}
-/// response headers
-#[derive(Deserialize)]
-pub struct {{ endpoint.operation | pascalcase }}Response{{ response.statusCode }}Headers{
-    {% for param in filtered_response_headers %}
-	#[serde(rename = "{{ param.name }}"{% if property.required %}, skip_serializing_if = "Option::is_none"{% endif %})]
-	pub {{ m::property_name(name = param.name) }}: {% if not param.required %}Option<{% endif %}{{ m::type(property = param.model, ns = "super::model") }}{% if not param.required %}>{% endif %},
-	{% endfor %}
-}
-{% endif %}
-{% endfor %}
-
-{% for response in endpoint.responses.all %}
-{% set filtered_response_headers = response.headers | default(value=[]) | filter_not_inarray(attribute="name", values=skipped_headers) %}
-{% if filtered_response_headers | length > 0 %}
-{% if not response.models.default.model.model %}
-{% elif froms_with_headers is not containing(response.models.default.model.model.name) %}
-pub struct {{ m::type(property = response.models.default.model, ns = "") }}WithHeaders {
-    pub body: {{ m::type(property = response.models.default.model, ns = "super::model") }},
-    pub headers: {{ endpoint.operation | pascalcase }}Response{{ response.statusCode }}Headers
-}
-
-{% set_global froms_with_headers = froms_with_headers | concat(with=response.models.default.model.model.name) %}
-{% endif %}
-{% endif %}
-{% endfor %}
-
-pub enum {{ endpoint.operation | pascalcase }}Response {
-	{% for response in endpoint.responses.all -%}
-    {% set filtered_response_headers = response.headers | default(value=[]) | filter_not_inarray(attribute="name", values=skipped_headers) %}
-    {%- if not response.models -%}
-    Status{{ response.statusCode }}{% if filtered_response_headers | length > 0 %}({{ endpoint.operation | pascalcase }}Response{{ response.statusCode }}Headers){% endif %},
-    {%- else -%}
-	Status{{ response.statusCode }}({% if filtered_response_headers | length == 0 %}{{ m::type(property = response.models.default.model, ns = "super::model") }}{% else %}{{ m::type(property = response.models.default.model, ns = "") }}WithHeaders{% endif %}),
-    {%- endif -%}
-	{% endfor %}
-}
-
-impl IntoResponse for {{ endpoint.operation | pascalcase }}Response {
-    fn into_response(self) -> axum::response::Response {
-        self.into()
-    }
-}
-
-impl From<{{ endpoint.operation | pascalcase }}Response> for Response<Body> {
-    fn from(response: {{ endpoint.operation | pascalcase }}Response) -> Response<Body> {
-			match response {
-				{% for response in endpoint.responses.all %}
-                {% set filtered_response_headers = response.headers | default(value=[]) | filter_not_inarray(attribute="name", values=skipped_headers) %}
-				{{ endpoint.operation | pascalcase }}Response::Status{{ response.statusCode }}
-                {%- if response.models -%}
-                    (model) =>
-                    {% if filtered_response_headers | length > 0 %}
-                    {
-                        let mut response = {{ e::into_response(response = response, name = "model.body") }};
-                        let headers = response.headers_mut();
-
-                        {% if filtered_response_headers | filter(attribute="required", value=true) | length > 0 %}
-                        {% for param in filtered_response_headers | filter(attribute="required", value=true) %}
-                        headers.insert("{{ param.name | lower }}", HeaderValue::from_str(&model.headers.{{ m::property_name(name = param.name) }}).unwrap());
-                        {% endfor %};
-                        {% endif %}
-
-                        {% for param in filtered_response_headers | filter(attribute="required", value=false)  %}
-                        if let Some(header) = model.headers.{{ m::property_name(name = param.name) }} {
-                            headers.insert("{{ param.name | lower }}", HeaderValue::from_str(&header).unwrap());
-                        }
-                        {% endfor %}
-
-                        response
-                    }
-                    {% else %}
-                    {{ e::into_response(response = response, name = "model") }}
-                    {% endif %}
-
-                {%- elif filtered_response_headers | length > 0 %}(h) => {
-                    let mut response = StatusCode::from_u16({{ response.statusCode }}).unwrap().into_response();
-                    let headers = response.headers_mut();
-
-                    {% if filtered_response_headers | filter(attribute="required", value=true) | length > 0 %}
-                    {% for param in filtered_response_headers | filter(attribute="required", value=true) %}
-                    headers.insert("{{ param.name | lower }}", HeaderValue::from_str(&h.{{ m::property_name(name = param.name) }}).unwrap());
-                    {% endfor %};
-                    {% endif %}
-
-                    {% for param in filtered_response_headers | filter(attribute="required", value=false)  %}
-                    if let Some(header) = h.{{ m::property_name(name = param.name) }} {
-                        headers.insert("{{ param.name | lower }}", HeaderValue::from_str(&header).unwrap());
-                    }
-                    {% endfor %}
-
-                    response
-                }
-                {%- else %} => StatusCode::from_u16({{ response.statusCode }}).unwrap().into_response(){% endif %},
-				{% endfor %}
-			}
-    }
-}
-
-
-{% for response in endpoint.responses.all %}
-{% set filtered_response_headers = response.headers | default(value=[]) | filter_not_inarray(attribute="name", values=skipped_headers) %}
-
-
-{% for model in response.models.all | default(value=[]) | filter(attribute="isUnique", value=true) %}
-{% if filtered_response_headers | length == 0 %}
-impl From<{{ m::type(property = model.model, ns = "super::model") }}> for {{ endpoint.operation | pascalcase }}Response {
-    fn from(data: {{ m::type(property = model.model, ns = "super::model") }}) -> Self {
-        Self::Status{{ response.statusCode }}(
-            data
-        )
-    }
-
-}
-{% endif %}
-{% endfor %}
-
-{% endfor %}
-{% endfor %}
-{% endfor %}
-
-
-
-/// all convertable Result are acceptable
-macro_rules! impl_from_result {
-    ($t:ident) => {
-        impl<O, E> From<Result<O, E>> for $t
-        where
-            O: Into<$t>,
-            E: Into<$t>,
-        {
-            fn from(res: Result<O, E>) -> Self {
-                match res {
-                    Ok(r) => r.into(),
-                    Err(e) => e.into(),
-                }
-            }
-        }
+#[utoipa::path(
+    post,
+    path = "/auth/login",
+    request_body = LoginRequest,
+    responses(
+        (status = 200, description = "Login successful", body = AuthResponse),
+        (status = 400, description = "Invalid credentials", body = ErrorResponse),
+        (status = 500, description = "Internal server error", body = ErrorResponse)
+    ),
+    operation_id = "login",
+    tag = "auth"
+)]
+pub async fn login(
+    State(state): State<Arc<AppState>>,
+    ExtractJson(payload): ExtractJson<LoginRequest>
+) -> Result<Json<AuthResponse>, Json<ErrorResponse>> {
+    let claims = Claims {
+        sub: "user_id".to_string(),
+        exp: (chrono::Utc::now() + chrono::Duration::hours(1)).timestamp() as usize,
+        role: "user".to_string()
     };
+    
+    match generate_jwt(&claims, &state.jwt_secret) {
+        Ok(token) => Ok(Json(AuthResponse {
+            token,
+            token_type: "Bearer".to_string(),
+            expires_in: 3600
+        })),
+        Err(_) => Err(Json(ErrorResponse {
+            error: "Failed to generate token".to_string()
+        }))
+    }
 }
 
-{% for tag in tags -%}
-{% for endpoint in tag.endpoints %}
-impl_from_result!({{ endpoint.operation | pascalcase }}Response);
-{%- endfor %}
-{%- endfor %}
-
-/// custom deserializer for query parameters /users?id=3,4,5
-/// style = form, explode = false according to https://swagger.io/docs/specification/serialization/
-pub fn deserialized_id_list<'de, D, I>(deserializer: D) -> std::result::Result<Vec<I>, D::Error>
-where
-    D: de::Deserializer<'de>,
-    I: de::DeserializeOwned,
-{
-    struct StringVecVisitor<I>(std::marker::PhantomData<I>);
-
-    impl<'de, I> de::Visitor<'de> for StringVecVisitor<I>
-    where I: de::DeserializeOwned {
-        type Value = Vec<I>;
-
-        fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-            formatter.write_str("a string containing a list")
-        }
-
-        fn visit_str<E>(self, v: &str) -> std::result::Result<Self::Value, E>
-        where
-            E: de::Error,
-        {
-            let mut ids = Vec::new();
-            for id in v.split(',') {
-                let id = I::deserialize(id.into_deserializer())?;
-                ids.push(id);
-            }
-            Ok(ids)
-        }
-    }
-
-    deserializer.deserialize_any(StringVecVisitor(std::marker::PhantomData::<I>))
+#[utoipa::path(
+    post,
+    path = "/auth/logout",
+    responses(
+        (status = 200, description = "Logout successful", body = SuccessResponse),
+        (status = 401, description = "Unauthorized", body = ErrorResponse),
+        (status = 500, description = "Internal server error", body = ErrorResponse)
+    ),
+    operation_id = "logout",
+    tag = "auth"
+)]
+pub async fn logout() -> impl IntoResponse {
+    Ok(Json(SuccessResponse {
+        success: true,
+        message: "Logged out successfully".to_string()
+    }))
 }
 
-pub fn deserialized_opt_id_list<'de, D, I>(deserializer: D) -> std::result::Result<Option<Vec<I>>, D::Error>
-where
-    D: de::Deserializer<'de>,
-    I: de::DeserializeOwned,
-{
-    struct StringVecVisitor<I>(std::marker::PhantomData<I>);
+#[utoipa::path(
+    post,
+    path = "/auth/api-key",
+    responses(
+        (status = 201, description = "API key generated", body = ApiKeyResponse),
+        (status = 401, description = "Unauthorized", body = ErrorResponse),
+        (status = 500, description = "Internal server error", body = ErrorResponse)
+    ),
+    operation_id = "generate_api_key",
+    tag = "auth"
+)]
+pub async fn generate_api_key(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    let api_key = uuid::Uuid::new_v4().to_string();
+    let mut keys = state.api_keys.write().await;
+    keys.push(api_key.clone());
+    
+    Ok(Json(ApiKeyResponse {
+        key: api_key
+    }))
+}
 
-    impl<'de, I> de::Visitor<'de> for StringVecVisitor<I>
-    where I: de::DeserializeOwned {
-        type Value = Option<Vec<I>>;
+#[utoipa::path(
+    get,
+    path = "/auth/rate-limit",
+    responses(
+        (status = 200, description = "Rate limit status", body = RateLimitResponse),
+        (status = 401, description = "Unauthorized", body = ErrorResponse),
+        (status = 500, description = "Internal server error", body = ErrorResponse)
+    ),
+    operation_id = "rate_limit_status",
+    tag = "auth"
+)]
+pub async fn rate_limit_status(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    Ok(Json(RateLimitResponse {
+        remaining: state.rate_limit,
+        reset: 60
+    }))
+}
 
-        fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-            formatter.write_str("a string containing a list")
-        }
+pub fn router() -> Router<Arc<AppState>> {
+    let api_routes = Router::new()
+        .route("/", get(hello_world))
+        .route("/items", get(list_items).post(create_item))
+        .route("/items/:id", get(get_item))
+        .route("/api-docs", get(|| async {
+            Json(openapi())
+        }))
+        .route("/openapi.json", get(|| async {
+            Json(openapi())
+        }));
+        
+    let auth_routes = Router::new()
+        .route("/login", post(login))
+        .route("/logout", post(logout))
+        .route("/api-key", post(generate_api_key))
+        .route("/rate-limit", get(rate_limit_status));
+        
+    Router::new()
+        .nest("/api", api_routes)
+        .nest("/auth", auth_routes)
+        .merge(openapi().into_router("/api-docs"))
+        .layer(RateLimitLayer::new(100, Duration::from_secs(60)))
+        .with_state(Arc::new(AppState {
+            jwt_secret: "secret".to_string(),
+            api_keys: Arc::new(RwLock::new(Vec::new())),
+            rate_limit: 100,
+        }))
+}
 
-        fn visit_str<E>(self, v: &str) -> std::result::Result<Self::Value, E>
-        where
-            E: de::Error,
-        {
-            let mut ids = Vec::new();
-            for id in v.split(',') {
-                let id = I::deserialize(id.into_deserializer())?;
-                ids.push(id);
-            }
-            Ok(Some(ids))
-        }
+#[derive(OpenApi)]
+#[openapi(
+    paths(
+        hello_world,
+        create_item,
+        list_items,
+        get_item,
+        login,
+        logout,
+        generate_api_key,
+        rate_limit_status
+    ),
+    components(schemas(
+        HelloWorldResponse,
+        ErrorResponse,
+        NotFoundResponse,
+        ValidationErrorResponse,
+        CreateRequest,
+        ItemResponse,
+        ListResponse<ItemResponse>,
+        AuthResponse,
+        ApiKeyResponse,
+        RateLimitResponse,
+        LoginRequest,
+        Claims
+    )),
+    tags(
+        (name = "example", description = "Example API endpoints"),
+        (name = "auth", description = "Authentication endpoints")
+    )
+)]
+pub struct ApiDoc;
 
-        fn visit_none<E>(self) -> std::result::Result<Self::Value, E>
-        where
-            E: de::Error,
-        {
-            Ok(None)
-        }
-    }
-
-    deserializer.deserialize_any(StringVecVisitor(std::marker::PhantomData::<I>))
+pub fn openapi() -> utoipa::openapi::OpenApi {
+    let mut openapi = ApiDoc::openapi();
+    openapi.info.title = "Example API".to_string();
+    openapi.info.description = Some("Example API documentation".to_string());
+    openapi.info.version = "1.0.0".to_string();
+    openapi.servers = Some(vec![
+        utoipa::openapi::Server::new("/api")
+            .description("API server"),
+        utoipa::openapi::Server::new("/auth")
+            .description("Authentication server")
+    ]);
+    openapi
 }
